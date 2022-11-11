@@ -394,8 +394,6 @@ static int rxm_join_coll(struct fid_ep *ep, const void *addr, uint64_t flags,
 
 	ret = fi_join(rxm_ep->util_coll_ep, addr, flags, &util_mc, context);
 	if (ret)
-		return ret;
-	if (rxm_ep->offload_coll_ep) {
 		ret = fi_join(rxm_ep->offload_coll_ep, addr, flags, mc, context);
 		if (ret)
 			goto err_util_coll;
@@ -415,13 +413,7 @@ err_off_coll:
 err_util_coll:
 	fi_close(&(util_mc)->fid);
 	return ret;
-}
-
-static struct fi_ops_cm rxm_ops_cm = {
 	.size = sizeof(struct fi_ops_cm),
-	.setname = rxm_setname,
-	.getname = rxm_getname,
-	.getpeer = fi_no_getpeer,
 	.connect = fi_no_connect,
 	.listen = fi_no_listen,
 	.accept = fi_no_accept,
