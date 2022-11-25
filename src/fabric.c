@@ -425,7 +425,7 @@ static void ofi_ordered_provs_init(void)
 		"ofi_hook_noop", "ofi_hook_hmem", "ofi_hook_dmabuf_peer_mem",
 
 		/* So do the offload providers. */
-		"off_coll",
+		"off_coll", "off_sharp",
 	};
 	struct ofi_prov *prov;
 	int num_provs, i;
@@ -873,6 +873,7 @@ void fi_ini(void)
 	ofi_register_provider(HOOK_NOOP_INIT, NULL);
 
 	ofi_register_provider(COLL_INIT, NULL);
+	ofi_register_provider(SHARP_INIT, NULL);
 
 	ofi_init = 1;
 

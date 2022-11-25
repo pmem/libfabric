@@ -1,6 +1,6 @@
 #
 # Copyright (c) 2016 Cisco Systems, Inc.  All rights reserved.
-# Copyright (c) 2017-2018 Intel Corporation, Inc. All right reserved.
+# Copyright (c) 2017-2022 Intel Corporation, Inc. All right reserved.
 # Copyright (c) 2018 Amazon.com, Inc. or its affiliates. All rights reserved.
 # (C) Copyright 2020 Hewlett Packard Enterprise Development LP
 #
@@ -454,6 +454,7 @@ include prov/rxd/Makefile.include
 include prov/bgq/Makefile.include
 include prov/opx/Makefile.include
 include prov/shm/Makefile.include
+include prov/sharp/Makefile.include
 include prov/tcp/Makefile.include
 include prov/net/Makefile.include
 include prov/rstream/Makefile.include
