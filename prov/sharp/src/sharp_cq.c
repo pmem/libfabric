@@ -31,10 +31,10 @@
  */
 
 #include "sharp.h"
-#include "../../coll/src/coll.h" //for coll_cq_open_imp
+#include "ofi_coll.h" //for coll_cq_init
 
 int sharp_cq_open(struct fid_domain *domain, struct fi_cq_attr *attr,
 		 struct fid_cq **cq_fid, void *context)
 {
-	return coll_cq_open_imp(domain, attr, cq_fid, &ofi_cq_progress, context);
+	return coll_cq_init(domain, attr, cq_fid, &ofi_cq_progress, context);
 }
