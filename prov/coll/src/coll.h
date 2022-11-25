@@ -191,5 +191,10 @@ ssize_t coll_ep_broadcast(struct fid_ep *ep, void *buf, size_t count,
 			  void *desc, fi_addr_t coll_addr, fi_addr_t root_addr,
 			  enum fi_datatype datatype, uint64_t flags,
 			  void *context);
+
+int coll_cq_open_imp(struct fi_provider* provider, struct fid_domain *domain,
+		struct fi_cq_attr *attr, struct fid_cq **cq_fid,
+		ofi_cq_progress_func progress, void *context);
+
 #endif /* _COLL_H_ */
 

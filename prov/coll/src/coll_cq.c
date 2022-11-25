@@ -103,8 +103,7 @@ int coll_cq_init(struct fid_domain *domain,
 
 	cq->peer_cq = peer_context->cq;
 
-	ret = ofi_cq_init(provider, domain, attr, &cq->util_cq, &ofi_cq_progress,
-			  context);
+	ret = ofi_cq_init(provider, domain, attr, &cq->util_cq, progress, context);
 	if (ret)
 		goto err;
 

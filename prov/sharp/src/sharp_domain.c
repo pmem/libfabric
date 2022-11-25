@@ -35,6 +35,8 @@
 
 #include "sharp.h"
 
+#include "../../coll/src/coll.h" //for coll_av_open
+
 struct sharp_mr {
 	struct fid_mr mr_fid;
 	// mr_fid.mem_desc stores result of sharp_coll_reg_mr
@@ -98,8 +100,8 @@ static struct fi_ops_mr sharp_domain_mr_ops = {
 
 static struct fi_ops_domain sharp_domain_ops = {
 	.size = sizeof(struct fi_ops_domain),
-	.av_open = fi_no_av_open,
-	.cq_open = fi_no_cq_open,
+	.av_open = coll_av_open,
+	.cq_open = sharp_cq_open,
 	.endpoint = sharp_endpoint,
 	.scalable_ep = fi_no_scalable_ep,
 	.cntr_open = fi_no_cntr_open,
