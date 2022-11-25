@@ -1,0 +1,170 @@
+/*
+ * Copyright (c) 2022 Intel Corporation. All rights reserved.
+ *
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+#if HAVE_CONFIG_H
+#  include <config.h>
+#endif /* HAVE_CONFIG_H */
+
+#include <sys/types.h>
+#include <sys/statvfs.h>
+#include <pthread.h>
+#include <stdint.h>
+#include <stddef.h>
+
+#include <rdma/fabric.h>
+#include <rdma/fi_atomic.h>
+#include <rdma/fi_cm.h>
+#include <rdma/fi_domain.h>
+#include <rdma/fi_endpoint.h>
+#include <rdma/fi_eq.h>
+#include <rdma/fi_errno.h>
+#include <rdma/fi_rma.h>
+#include <rdma/fi_tagged.h>
+#include <rdma/fi_trigger.h>
+#include <rdma/providers/fi_prov.h>
+#include <rdma/fi_ext.h>
+
+#include <ofi.h>
+#include <ofi_enosys.h>
+#include <ofi_sharp.h>
+#include <ofi_rbuf.h>
+#include <ofi_list.h>
+#include <ofi_signal.h>
+#include <ofi_epoll.h>
+#include <ofi_util.h>
+#include <ofi_atomic.h>
+#include <ofi_iov.h>
+#include <ofi_mr.h>
+#include <ofi_lock.h>
+
+#ifndef _SHARP_H_
+#define _SHARP_H_
+
+#define SHARP_IOV_LIMIT		1
+#define SHARP_TX_OP_FLAGS (0)
+#define SHARP_RX_OP_FLAGS (0)
+#define SHARP_DOMAIN_CAPS (FI_LOCAL_COMM | FI_REMOTE_COMM)
+enum {
+	SHARP_RX_SIZE = 65536,
+	SHARP_TX_SIZE = 16384,
+};
+
+
+struct sharp_env {
+	size_t sharp_ib_port;
+};
+
+extern struct sharp_env sharp_env;
+
+/// XXX temporary solution
+#ifdef sharp_coll_context
+#define sharp_coll_context_t struct sharp_coll_context
+#else
+#define sharp_coll_context_t void
+#endif
+
+struct sharp_domain {
+	struct util_domain	util_domain;
+	struct fid_domain *peer_domain;
+	sharp_coll_context_t *sharp_context;
+	ofi_atomic32_t	ref; // mr count
+	ofi_spin_t		lock;
+};
+
+struct sharp_fabric {
+	struct util_fabric	util_fabric;
+};
+
+struct sharp_ep {
+	struct util_ep 	util_ep;
+	struct fi_info 	*sharp_info;
+
+	/*
+	 * Peer ep from the main provider.
+	 * Used for oob communications that SHARP uses during setup.
+	 */
+	struct fid_ep	*peer_ep;
+	struct fi_info 	*peer_info;
+
+	ofi_atomic32_t	ref; // mc count
+	ofi_spin_t		lock;
+	const char *name; // XXX to be removed when no longer needed
+};
+
+struct sharp_av {
+	struct util_av util_av;
+	struct fid_peer_av *peer_av;
+};
+
+/// XXX temporary solution
+#ifdef sharp_coll_comm
+#define sharp_coll_comm_t struct sharp_coll_comm
+#else
+#define sharp_coll_comm_t void
+#endif
+struct sharp_mc {
+	struct fid_mc		mc_fid;
+	struct util_av_set	*av_set;
+	uint64_t			local_rank;
+	uint16_t			group_id;
+	uint16_t			seq; //XXX
+	ofi_atomic32_t		ref; //XXX
+	fi_addr_t			addr;
+	struct sharp_ep		*ep;
+
+	sharp_coll_comm_t 	*sharp_context;
+};
+
+extern struct fi_fabric_attr sharp_fabric_attr;
+extern struct fi_provider sharp_prov;
+extern struct util_prov sharp_util_prov;
+extern struct fi_info sharp_info;
+
+int sharp_fabric(struct fi_fabric_attr *attr, struct fid_fabric **fabric,
+				void *context);
+
+int sharp_domain2(struct fid_fabric *fabric, struct fi_info *info,
+		struct fid_domain **dom, uint64_t flags, void *context);
+
+int sharp_query_collective(struct fid_domain *domain,
+		enum fi_collective_op coll, struct fi_collective_attr *attr,
+		uint64_t flags);
+
+
+int sharp_endpoint(struct fid_domain *domain, struct fi_info *info,
+		  struct fid_ep **ep, void *context);
+
+void sharp_ep_progress(struct util_ep *util_ep);
+
+int sharp_join_collective(struct fid_ep *ep, const void *addr,
+		         uint64_t flags, struct fid_mc **mc, void *context);
+#endif

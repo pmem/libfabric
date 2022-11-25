@@ -298,6 +298,7 @@ enum fi_ep_type {
 	FI_EP_RDM,
 	FI_EP_SOCK_STREAM,
 	FI_EP_SOCK_DGRAM,
+	FI_EP_COLLECTIVE
 };
 
 /* Endpoint protocol
