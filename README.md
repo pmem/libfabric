@@ -211,6 +211,15 @@ over MSG endpoints of a core provider.
 
 See [`fi_rxm`(7)](https://ofiwg.github.io/libfabric/main/man/fi_rxm.7.html) for more information.
 
+### sharp
+
+***
+
+The `off_sharp` provider is an utility provider that supports collective endpoints utilizing
+SHARP protocol for the barier and the allreduce operations.
+
+See [`fi_sharp`(7)](https://ofiwg.github.io/libfabric/main/man/fi_sharp.7.html) for more information.
+
 ### sockets
 
 ***
