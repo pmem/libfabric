@@ -1,0 +1,30 @@
+if HAVE_SHARP
+_sharp_files = \
+	include/ofi_sharp.h			\
+	prov/sharp/src/sharp.h			\
+	prov/sharp/src/sharp_attr.c		\
+	prov/sharp/src/sharp_init.c		\
+	prov/sharp/src/sharp_fabric.c		\
+	prov/sharp/src/sharp_domain.c		\
+	prov/sharp/src/sharp_eq.c		\
+	prov/sharp/src/sharp_ep.c		\
+	prov/sharp/src/sharp_cq.c		\
+	prov/sharp/src/sharp_coll.c		\
+	prov/sharp/src/sharp_progress.c
+
+if HAVE_SHARP_DL
+pkglib_LTLIBRARIES += libsharp-fi.la
+libsharp_fi_la_SOURCES = $(_sharp_files) $(common_srcs)
+libsharp_fi_la_LIBADD = $(linkback) $(sharp_LIBS)
+libsharp_fi_la_LDFLAGS = -module -avoid-version -shared -export-dynamic
+libsharp_fi_la_DEPENDENCIES = $(linkback)
+else !HAVE_SHARP_DL
+src_libfabric_la_SOURCES += $(_sharp_files)
+src_libfabric_la_LIBADD += $(sharp_LIBS)
+endif !HAVE_SHARP_DL
+
+prov_install_man_pages += man/man7/fi_sharp.7
+
+endif HAVE_SHARP
+
+prov_dist_man_pages += man/man7/fi_sharp.7

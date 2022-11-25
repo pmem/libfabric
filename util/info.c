@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2013-2020, 2022 Intel Corporation.  All rights reserved.
  * Copyright (c) 2016 Cisco Systems, Inc.  All rights reserved.
  *
  * This software is available to you under the BSD license below:
@@ -35,6 +35,7 @@
 #include <getopt.h>
 #include <ctype.h>
 
+#include <ofi.h>
 #include <ofi_osd.h>
 
 #include <rdma/fabric.h>
@@ -68,6 +69,7 @@ static const struct option longopts[] = {
 	{"list", no_argument, NULL, 'l'},
 	{"verbose", no_argument, NULL, 'v'},
 	{"version", no_argument, &ver, 1},
+	{"offload", no_argument, NULL, 'o'},
 	{0,0,0,0}
 };
 
@@ -89,6 +91,7 @@ static const char *help_strings[][2] = {
 	{"", "\t\tlist available libfabric providers"},
 	{"", "\t\tverbose output"},
 	{"", "\t\tprint version info and exit"},
+	{"", "\t\tshow only offload providers (experimental)"},
 	{"", ""}
 };
 
@@ -355,7 +358,7 @@ int main(int argc, char **argv)
 	hints->domain_attr->mode = ~0;
 	hints->domain_attr->mr_mode = ~(FI_MR_BASIC | FI_MR_SCALABLE);
 
-	while ((op = getopt_long(argc, argv, "s:n:P:c:m:t:a:p:d:f:eg:i:lhv", longopts,
+	while ((op = getopt_long(argc, argv, "s:n:P:c:m:t:a:p:d:f:eg:i:lhv:o", longopts,
 				 &option_index)) != -1) {
 		switch (op) {
 		case 0:
@@ -435,6 +438,9 @@ int main(int argc, char **argv)
 			/* fall through */
 		case 'v':
 			verbose = 1;
+			break;
+		case 'o':
+			flags |= OFI_OFFLOAD_PROV_ONLY;
 			break;
 		case 'h':
 		default:
