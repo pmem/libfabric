@@ -144,6 +144,11 @@ struct sharp_mc {
 	sharp_coll_comm_t 	*sharp_context;
 };
 
+struct sharp_cq {
+	struct util_cq util_cq;
+	struct fid_peer_cq *peer_cq;
+};
+
 extern struct fi_fabric_attr sharp_fabric_attr;
 extern struct fi_provider sharp_prov;
 extern struct util_prov sharp_util_prov;
@@ -167,4 +172,8 @@ void sharp_ep_progress(struct util_ep *util_ep);
 
 int sharp_join_collective(struct fid_ep *ep, const void *addr,
 		         uint64_t flags, struct fid_mc **mc, void *context);
+
+int sharp_cq_open(struct fid_domain *domain, struct fi_cq_attr *attr,
+		 struct fid_cq **cq_fid, void *context);
+
 #endif
