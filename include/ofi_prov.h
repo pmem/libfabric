@@ -323,4 +323,15 @@ OPX_INI ;
 #define COLL_INIT fi_coll_ini()
 COLL_INI ;
 
+#if (HAVE_SHARP) && (HAVE_SHARP_DL)
+#  define SHARP_INI FI_EXT_INI
+#  define SHARP_INIT NULL
+#elif (HAVE_SHARP)
+#  define SHARP_INI INI_SIG(fi_sharp_ini)
+#  define SHARP_INIT fi_sharp_ini()
+SHARP_INI ;
+#else
+#  define SHARP_INIT NULL
+#endif
+
 #endif /* _OFI_PROV_H_ */
