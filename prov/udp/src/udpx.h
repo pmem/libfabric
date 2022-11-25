@@ -73,6 +73,9 @@ int udpx_fabric(struct fi_fabric_attr *attr, struct fid_fabric **fabric,
 		void *context);
 int udpx_domain_open(struct fid_fabric *fabric, struct fi_info *info,
 		struct fid_domain **dom, void *context);
+int udpx_eq_open(struct fid_fabric *fabric, struct fi_eq_attr *attr,
+		struct fid_eq **eq, void *context);
+
 
 #define UDPX_FLAG_MULTI_RECV	1
 #define UDPX_IOV_LIMIT		4
