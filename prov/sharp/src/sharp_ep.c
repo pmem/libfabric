@@ -88,68 +88,28 @@ static int sharp_ep_close(struct fid *fid)
 	return 0;
 }
 
-static int sharp_ep_bind_cq(struct sharp_ep *ep, struct util_cq *cq, uint64_t flags)
-{
-	int ret;
-//XXX
-	ret = ofi_ep_bind_cq(&ep->util_ep, cq, flags);
-	if (ret)
-		return ret;
-
-	ret = fid_list_insert(&cq->ep_list,
-			      &cq->ep_list_lock,
-			      &ep->util_ep.ep_fid.fid);
-
-	return ret;
-}
-
 static int sharp_ep_bind(struct fid *ep_fid, struct fid *bfid, uint64_t flags)
 {
-	struct sharp_ep *ep;
-	struct util_av *av;
-	int ret;
-
-	ep = container_of(ep_fid, struct sharp_ep, util_ep.ep_fid.fid);
 	switch (bfid->fclass) {
 	case FI_CLASS_AV:
-		av = container_of(bfid, struct util_av, av_fid.fid);
-		ret = ofi_ep_bind_av(&ep->util_ep, av);
-		if (ret) {
-			FI_WARN(&sharp_prov, FI_LOG_EP_CTRL,
-				"duplicate AV binding\n");
-			return -FI_EINVAL;
-		}
-		break;
 	case FI_CLASS_CQ:
-		ret = sharp_ep_bind_cq(ep, container_of(bfid, struct util_cq,
-						      cq_fid.fid), flags);
-		break;
+		return ofi_ep_fid_bind(ep_fid, bfid, flags);
 	case FI_CLASS_EQ:
 	case FI_CLASS_CNTR:
 	case FI_CLASS_SRX_CTX:
 	default:
 		FI_WARN(&sharp_prov, FI_LOG_EP_CTRL,
 			"invalid fid class\n");
-		ret = -FI_EINVAL;
-		break;
+		return -FI_EINVAL;
 	}
-	return ret;
+	return -FI_EINVAL;
 }
 
 static int sharp_ep_ctrl(struct fid *fid, int command, void *arg)
 {
-#if 0
-	struct sharp_ep *ep;
-	ep = container_of(fid, struct sharp_ep, util_ep.ep_fid.fid);
-#endif
+	if (command == FI_ENABLE)
+		return 0;
 
-	switch (command) {
-	case FI_ENABLE:
-		return -FI_ENOSYS;
-		break;
-	default:
-		return -FI_ENOSYS;
-	}
 	return -FI_ENOSYS;
 }
 
@@ -233,30 +193,52 @@ int sharp_endpoint(struct fid_domain *domain, struct fi_info *info,
 		return -EINVAL;
 	}
 
+	if (!peer_context || peer_context->size < sizeof(*peer_context)) {
+		FI_WARN(&sharp_prov, FI_LOG_CORE,
+			"Invalid peer transfer context\n");
+		return -EINVAL;
+	}
+
 	ep = calloc(1, sizeof(*ep));
 	if (!ep)
 		return -FI_ENOMEM;
 
+	ep->sharp_info = fi_dupinfo(info);
+	if (!ep->sharp_info) {
+		ret = -FI_ENOMEM;
+		goto err;
+	}
+
+	ep->peer_info = fi_dupinfo(peer_context->info);
+	if (!ep->peer_info) {
+		ret = -FI_ENOMEM;
+		goto err;
+	}
+
+	ep->peer_ep = peer_context->ep;
+
+	ret = ofi_endpoint_init(domain, &sharp_util_prov, info, &ep->util_ep, context,
+				sharp_ep_progress);
+	
+	if (ret)
+		goto err;
+	
 	ofi_atomic_initialize32(&ep->ref, 0);
 
 	ret = ofi_spin_init(&ep->lock);
-	if (ret)
-		goto error_ep;
-
-	ep->peer_ep = peer_context->ep;
-	ret = ofi_endpoint_init(domain, &sharp_util_prov, info, &ep->util_ep, context,
-				sharp_ep_progress);
-	if (ret)
-		goto error_lock;
+	if (ret) {
+		ofi_spin_destroy(&ep->lock);
+		goto err;
+	}
 
 	fid_ep_init(ep_fid, &ep->util_ep, &sharp_ep_fid_ops, &sharp_ep_ops,
 		&sharp_ep_cm_ops, NULL, NULL, NULL, NULL, &sharp_ep_collective_ops);
 
 	return 0;
 
-error_lock:
-	ofi_spin_destroy(&ep->lock);
-error_ep:
+err:
+	fi_freeinfo(ep->peer_info);
+	fi_freeinfo(ep->sharp_info);
 	free(ep);
 	return ret;
 }
