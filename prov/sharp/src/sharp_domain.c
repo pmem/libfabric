@@ -39,10 +39,10 @@
 
 struct sharp_mr {
 	struct fid_mr mr_fid;
-	// mr_fid.mem_desc stores result of sharp_coll_reg_mr
-	// XXX
+	void *mr_handle; //obtained from sharp_coll_reg_mr
+	// alternatively mr_fid.mem_desc stores result of sharp_coll_reg_mr
+	struct sharp_domain *domain;
 };
-
 
 static int sharp_mr_close(fid_t fid)
 {
