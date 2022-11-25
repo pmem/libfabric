@@ -104,6 +104,7 @@ install:
       --disable-udp
       --disable-usnic
       --disable-verbs
+      --disable-sharp
     - make -j2 $MAKE_FLAGS
     - make install
     - make test
