@@ -86,7 +86,6 @@ int coll_cq_init(struct fid_domain *domain,
 	coll_domain = container_of(domain, struct coll_domain, util_domain.domain_fid.fid);
 	provider = coll_domain->util_domain.fabric->prov;
 
-
 	if (!attr || !(attr->flags & FI_PEER)) {
 		FI_WARN(provider, FI_LOG_CORE, "FI_PEER flag required\n");
                 return -EINVAL;

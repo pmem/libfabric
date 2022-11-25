@@ -36,6 +36,5 @@
 int sharp_cq_open(struct fid_domain *domain, struct fi_cq_attr *attr,
 		 struct fid_cq **cq_fid, void *context)
 {
-	return coll_cq_open_imp(&sharp_prov, domain, attr, cq_fid, 
-		&ofi_cq_progress, context);
+	return coll_cq_open_imp(domain, attr, cq_fid, &ofi_cq_progress, context);
 }
