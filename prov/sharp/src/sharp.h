@@ -132,15 +132,9 @@ struct sharp_av {
 #define sharp_coll_comm_t void
 #endif
 struct sharp_mc {
-	struct fid_mc		mc_fid;
-	struct util_av_set	*av_set;
-	uint64_t			local_rank;
-	uint16_t			group_id;
-	uint16_t			seq; //XXX
-	ofi_atomic32_t		ref; //XXX
-	fi_addr_t			addr;
-	struct sharp_ep		*ep;
+	struct util_coll_mc coll_mc;
 
+	struct sharp_ep		*ep;
 	sharp_coll_comm_t 	*sharp_context;
 };
 
