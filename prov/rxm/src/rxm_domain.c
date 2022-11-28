@@ -320,6 +320,9 @@ static int rxm_query_collective(struct fid_domain *domain,
 
 	if (!rxm_domain->util_coll_domain)
 		return -FI_ENOSYS;
+	if (rxm_domain->offload_coll_domain)
+		return fi_query_collective(rxm_domain->offload_coll_domain,
+					coll, attr, flags);
 
 	if (rxm_domain->offload_coll_domain)
 		ret = fi_query_collective(rxm_domain->offload_coll_domain,
