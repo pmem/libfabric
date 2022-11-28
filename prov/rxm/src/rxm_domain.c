@@ -319,6 +319,9 @@ static int rxm_query_collective(struct fid_domain *domain,
 
 	if (!rxm_domain->util_coll_domain)
 		return -FI_ENOSYS;
+	if (rxm_domain->offload_coll_domain)
+		return fi_query_collective(rxm_domain->offload_coll_domain,
+					coll, attr, flags);
 
 	return fi_query_collective(rxm_domain->util_coll_domain,
 				   coll, attr, flags);
@@ -890,6 +893,7 @@ int rxm_domain_open(struct fid_fabric *fabric, struct fi_info *info,
 					 FI_PEER, &peer_context);
 			if (ret)
 				goto err5;
+			rxm_domain->offload_coll_mask = 1;
 		}
 	}
 
