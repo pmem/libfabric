@@ -60,6 +60,7 @@
 #include <ofi_hmem.h>
 #include <ofi_prov.h>
 #include <ofi_atomic.h>
+#include <ofi_coll.h>
 
 #define COLL_IOV_LIMIT 4
 #define COLL_MR_MODES	(OFI_MR_BASIC_MAP | FI_MR_LOCAL)
