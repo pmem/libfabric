@@ -408,7 +408,7 @@ static void ofi_ordered_provs_init(void)
 {
 	char *ordered_prov_names[] = {
 		"efa", "psm2", "opx", "psm", "usnic", "gni", "bgq", "verbs",
-		"netdir", "psm3", "ofi_rxm", "ofi_rxd", "shm", "off_sharp",
+		"netdir", "psm3", "ofi_rxm", "ofi_rxd", "shm",
 		/* Initialize the socket based providers last of the
 		 * standard providers.  This will result in them being
 		 * the least preferred providers.
@@ -425,7 +425,7 @@ static void ofi_ordered_provs_init(void)
 		"ofi_hook_dmabuf_peer_mem",
 
 		/* So do the offload providers. */
-		"off_coll",
+		"off_coll", "off_sharp",
 	};
 	struct ofi_prov *prov;
 	int num_provs, i;
@@ -853,7 +853,6 @@ void fi_ini(void)
 	ofi_register_provider(SHM_INIT, NULL);
 	ofi_register_provider(RXM_INIT, NULL);
 	ofi_register_provider(VERBS_INIT, NULL);
-	ofi_register_provider(SHARP_INIT, NULL);
 	/* ofi_register_provider(RSTREAM_INIT, NULL); - no support */
 	ofi_register_provider(MRAIL_INIT, NULL);
 	ofi_register_provider(RXD_INIT, NULL);
@@ -871,6 +870,7 @@ void fi_ini(void)
 	ofi_register_provider(HOOK_NOOP_INIT, NULL);
 
 	ofi_register_provider(COLL_INIT, NULL);
+	ofi_register_provider(SHARP_INIT, NULL);
 
 	ofi_init = 1;
 
