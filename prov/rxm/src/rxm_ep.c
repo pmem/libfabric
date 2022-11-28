@@ -384,13 +384,37 @@ static int rxm_join_coll(struct fid_ep *ep, const void *addr, uint64_t flags,
 		    struct fid_mc **mc, void *context)
 {
 	struct rxm_ep *rxm_ep;
+	struct fid_mc *util_mc;
+	int ret;
 
 	if (!(flags & FI_COLLECTIVE))
 		return -FI_ENOSYS;
 
 	rxm_ep = container_of(ep, struct rxm_ep, util_ep.ep_fid);
 
-	return fi_join(rxm_ep->util_coll_ep, addr, flags, mc, context);
+	ret = fi_join(rxm_ep->util_coll_ep, addr, flags, &util_mc, context);
+	if (ret)
+		return ret;
+	if (rxm_ep->offload_coll_ep) {
+		ret = fi_join(rxm_ep->offload_coll_ep, addr, flags, mc, context);
+		if (ret)
+			goto err_util_coll;
+		// It is collective offload provider responsibility to store util_coll provider mc
+		ret = (*mc)->fid.ops->bind(&((*mc)->fid), &(util_mc->fid), 0);
+		if (ret)
+			goto err_off_coll;
+
+	} else {
+		*mc = util_mc;
+	}
+	return 0;
+
+err_off_coll:
+	fi_close(&(*mc)->fid);
+
+err_util_coll:
+	fi_close(&(util_mc)->fid);
+	return ret;
 }
 
 static struct fi_ops_cm rxm_ops_cm = {
@@ -1870,6 +1894,7 @@ int rxm_endpoint(struct fid_domain *domain, struct fi_info *info,
 
 		peer_context.peer_ops = NULL;
 		if (rxm_domain->offload_coll_mask) {
+			rxm_fabric->offload_coll_info->mode |= FI_PEER_TRANSFER;
 			ret = fi_endpoint(rxm_domain->offload_coll_domain,
 					  rxm_fabric->offload_coll_info,
 					  &rxm_ep->offload_coll_ep,
