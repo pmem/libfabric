@@ -43,8 +43,9 @@ int sharp_query_collective(struct fid_domain *domain,
 
 	switch (coll) {
 	case FI_BARRIER:
+		// return FI_SUCCESS; //XXX to be change when barier operation is implemented
 	case FI_ALLREDUCE:
-		return FI_SUCCESS;
+		// return FI_SUCCESS; //XXX to be change when allreduce operation is implemented
 	case FI_ALLGATHER:
 	case FI_SCATTER:
 	case FI_BROADCAST:
@@ -59,20 +60,42 @@ int sharp_query_collective(struct fid_domain *domain,
 	return -FI_ENOSYS;
 }
 
-#if 0
 static int sharp_mc_close(struct fid *fid)
 {
-#if 0
 	struct sharp_mc *mc;
 
 	mc = container_of(fid, struct sharp_mc, mc_fid.fid);
-	ofi_atomic_dec32(&mc->ep->ref);
+	if (mc->oob_fid_mc) {
+		fi_close(&(mc->oob_fid_mc->fid));
+		mc->oob_fid_mc = NULL;
+	}
+	// ofi_atomic_dec32(&mc->ep->ref); //XXX
 	free(mc);
 	return 0;
-#else
-	return -FI_ENOSYS;
-#endif
 }
+
+
+int	sharp_mc_bind(struct fid *fid, struct fid *bfid, uint64_t flags)
+{
+	struct sharp_mc *mc;
+	struct fid_mc *fid_mc;
+	mc = container_of(fid, struct sharp_mc, mc_fid.fid);
+	fid_mc = container_of(bfid, struct fid_mc, fid);
+	mc->oob_fid_mc = fid_mc;
+	return 0;
+}
+
+
+static struct fi_ops sharp_mc_fid_ops = {
+	.size = sizeof(struct fi_ops),
+	.close = sharp_mc_close,
+	.bind = sharp_mc_bind,
+	.control = fi_no_control,
+	.ops_open = fi_no_ops_open,
+};
+
+#if 0
+
 
 #if 0
 static struct fi_ops sharp_mc_ops = {
@@ -138,6 +161,16 @@ static int sharp_find_local_rank(struct fid_ep *ep, struct sharp_mc *sharp_mc)
 int sharp_join_collective(struct fid_ep *fid, const void *addr, uint64_t flags,
 		    struct fid_mc **mc_fid, void *context)
 {
+	struct sharp_mc *mc;
+	//XXX struct fi_peer_transfer_context *peer_context = context;
+
+	mc = calloc(1, sizeof(*mc));
+	if (!mc)
+		return -FI_ENOMEM;
+
+	*mc_fid = &mc->mc_fid;
+	(*mc_fid)->fid.ops = &sharp_mc_fid_ops;
+	return 0;
 
 #if 0
 	struct fi_collective_addr *c_addr;
@@ -180,8 +213,6 @@ int sharp_join_collective(struct fid_ep *fid, const void *addr, uint64_t flags,
 	*mc_fid = &new_mc->mc_fid;
 
 	return 0; //XXX
-#else
-	return -FI_ENOSYS;
 #endif
 }
 
