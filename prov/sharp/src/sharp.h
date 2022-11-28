@@ -117,9 +117,9 @@ struct sharp_ep {
 
 	ofi_atomic32_t	ref; // mc count
 	ofi_spin_t		lock;
-	const char *name; // XXX to be removed when no longer needed
 };
 
+// XXX to be reused from coll provider
 struct sharp_av {
 	struct util_av util_av;
 	struct fid_peer_av *peer_av;
