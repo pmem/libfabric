@@ -72,7 +72,7 @@
 #define SHARP_IOV_LIMIT		1
 #define SHARP_TX_OP_FLAGS (0)
 #define SHARP_RX_OP_FLAGS (0)
-#define SHARP_DOMAIN_CAPS (FI_LOCAL_COMM | FI_REMOTE_COMM)
+#define SHARP_DOMAIN_CAPS (FI_COLLECTIVE | FI_LOCAL_COMM | FI_REMOTE_COMM)
 enum {
 	SHARP_RX_SIZE = 65536,
 	SHARP_TX_SIZE = 16384,
@@ -132,8 +132,9 @@ struct sharp_av {
 #define sharp_coll_comm_t void
 #endif
 struct sharp_mc {
-	struct util_coll_mc coll_mc;
-
+	struct fid_mc		mc_fid;
+	struct util_coll_mc coll_mc; //XXX will replace mc_fid in the future
+	struct fid_mc 		*oob_fid_mc;
 	struct sharp_ep		*ep;
 	sharp_coll_comm_t 	*sharp_context;
 };
