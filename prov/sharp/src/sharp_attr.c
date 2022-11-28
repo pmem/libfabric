@@ -56,7 +56,7 @@ struct fi_rx_attr sharp_rx_attr = {
 };
 
 struct fi_ep_attr sharp_ep_attr = {
-	.type = FI_EP_COLLECTIVE,
+	.type = FI_EP_RDM,
 	.protocol = FI_PROTO_COLL,
 	.protocol_version = 1,
 	.max_msg_size = SIZE_MAX,
