@@ -162,4 +162,8 @@ struct util_coll_operation {
 	uint64_t			flags;
 };
 
+int coll_cq_init(struct fid_domain *domain, struct fi_cq_attr *attr,
+			struct fid_cq **cq_fid, ofi_cq_progress_func progress,
+			void *context);
+
 #endif // _OFI_COLL_H_
