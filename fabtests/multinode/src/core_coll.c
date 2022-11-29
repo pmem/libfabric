@@ -629,10 +629,7 @@ int multinode_run_tests(int argc, char **argv)
 		tests[i].teardown();
 		FT_DEBUG("Run Complete...\n");
 		FT_DEBUG("Test %s: %s \n", ret?"Skipped":"Complete", tests[i].name);
-<<<<<<< HEAD
 		ret = 0;
-=======
->>>>>>> b61e2af04 (fabtests/multinode - skip test if not supported by provider)
 	}
 
 out:
