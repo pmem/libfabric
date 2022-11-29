@@ -41,30 +41,30 @@
 #include <stddef.h>
 
 #include <rdma/fabric.h>
-#include <rdma/fi_atomic.h>
-#include <rdma/fi_cm.h>
+//#include <rdma/fi_atomic.h>
+//#include <rdma/fi_cm.h>
 #include <rdma/fi_domain.h>
 #include <rdma/fi_endpoint.h>
 #include <rdma/fi_eq.h>
 #include <rdma/fi_errno.h>
-#include <rdma/fi_rma.h>
-#include <rdma/fi_tagged.h>
-#include <rdma/fi_trigger.h>
+//#include <rdma/fi_rma.h>
+//#include <rdma/fi_tagged.h>
+//#include <rdma/fi_trigger.h>
 #include <rdma/providers/fi_prov.h>
 #include <rdma/fi_ext.h>
 
 #include <ofi.h>
 #include <ofi_enosys.h>
 #include <ofi_sharp.h>
-#include <ofi_rbuf.h>
+//#include <ofi_rbuf.h>
 #include <ofi_list.h>
 #include <ofi_signal.h>
-#include <ofi_epoll.h>
+//#include <ofi_epoll.h>
 #include <ofi_util.h>
-#include <ofi_atomic.h>
-#include <ofi_iov.h>
+//#include <ofi_atomic.h>
+//#include <ofi_iov.h>
 #include <ofi_mr.h>
-#include <ofi_lock.h>
+//#include <ofi_lock.h>
 
 #ifndef _SHARP_H_
 #define _SHARP_H_
@@ -80,7 +80,7 @@ enum {
 
 
 struct sharp_env {
-	size_t sharp_ib_port;
+	size_t ib_port;
 };
 
 extern struct sharp_env sharp_env;
