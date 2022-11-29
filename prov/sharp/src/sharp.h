@@ -41,8 +41,7 @@
 #include <stddef.h>
 
 #include <rdma/fabric.h>
-//#include <rdma/fi_atomic.h>
-//#include <rdma/fi_cm.h>
+ 
 #include <rdma/fi_domain.h>
 #include <rdma/fi_endpoint.h>
 #include <rdma/fi_eq.h>
@@ -104,6 +103,11 @@ struct sharp_fabric {
 	struct util_fabric	util_fabric;
 };
 
+struct sharp_eq {
+	struct util_eq util_eq;
+	struct fid_eq *peer_eq;
+};
+
 struct sharp_ep {
 	struct util_ep 	util_ep;
 	struct fi_info 	*sharp_info;
@@ -133,7 +137,12 @@ struct sharp_av {
 #endif
 struct sharp_mc {
 	struct fid_mc		mc_fid;
-	struct util_coll_mc coll_mc; //XXX will replace mc_fid in the future
+	struct util_av_set	*av_set;
+	uint64_t		local_rank;
+	uint16_t		group_id;
+	uint16_t		seq;
+	ofi_atomic32_t		ref;
+
 	struct fid_mc 		*oob_fid_mc;
 	struct sharp_ep		*ep;
 	sharp_coll_comm_t 	*sharp_context;
@@ -170,5 +179,8 @@ int sharp_join_collective(struct fid_ep *ep, const void *addr,
 
 int sharp_cq_open(struct fid_domain *domain, struct fi_cq_attr *attr,
 		 struct fid_cq **cq_fid, void *context);
+
+int sharp_eq_open(struct fid_fabric *fabric, struct fi_eq_attr *attr,
+		 struct fid_eq **eq_fid, void *context);
 
 #endif

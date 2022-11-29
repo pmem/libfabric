@@ -30,80 +30,73 @@
  * SOFTWARE.
  */
 
-#include <stdlib.h>
-#include <string.h>
-
 #include "sharp.h"
 
-static struct fi_ops_fabric sharp_fabric_ops = {
-	.size = sizeof(struct fi_ops_fabric),
-	.domain = fi_no_domain,
-	.passive_ep = fi_no_passive_ep,
-	.eq_open = sharp_eq_open,
-	.wait_open = fi_no_wait_open,
-	.trywait = ofi_trywait,
-	.domain2 = sharp_domain2
-};
-
-static int sharp_fabric_close(fid_t fid)
+static int sharp_eq_close(struct fid *fid)
 {
+	struct sharp_eq *eq;
 	int ret;
-	struct util_fabric *fabric;
 
-	fabric = container_of(fid, struct util_fabric, fabric_fid.fid);
+	eq = container_of(fid, struct sharp_eq, util_eq.eq_fid.fid);
 
-	ret = ofi_fabric_close(fabric);
+	ret = ofi_eq_cleanup(fid);
 	if (ret)
 		return ret;
 
-	free(fabric);
+	free(eq);
 	return 0;
 }
 
-static struct fi_ops sharp_fabric_fi_ops = {
+static struct fi_ops sharp_eq_fi_ops = {
 	.size = sizeof(struct fi_ops),
-	.close = sharp_fabric_close,
+	.close = sharp_eq_close,
 	.bind = fi_no_bind,
 	.control = fi_no_control,
 	.ops_open = fi_no_ops_open,
 };
 
-/// XXX to be added to fabric.h later
-static inline void 
-fid_fabric_init(struct fid_fabric **fabric_fid,
-		struct util_fabric *util_fabric, struct fi_ops *fid_ops,
-		struct fi_ops_fabric *ops)
-{
-	*fabric_fid = &util_fabric->fabric_fid;
-	(*fabric_fid)->fid.ops = fid_ops;
-	(*fabric_fid)->ops = ops;
-}
+static struct fi_ops_eq sharp_eq_ops = {
+	.size = sizeof(struct fi_ops_cq),
+	.read = fi_no_eq_read,
+	.readerr = fi_no_eq_readerr,
+	.write = fi_no_eq_write,
+	.sread = fi_no_eq_sread,
+	.strerror = fi_no_eq_strerror,
+};
 
-int sharp_fabric(struct fi_fabric_attr *attr, struct fid_fabric **fabric_fid,
-		void *context)
+int sharp_eq_open(struct fid_fabric *fabric, struct fi_eq_attr *attr,
+		 struct fid_eq **eq_fid, void *context)
 {
+	struct sharp_eq *eq;
+	struct fi_peer_eq_context *peer_context = context;
 	int ret;
-	struct sharp_fabric *fabric;
 
-	fabric = calloc(1, sizeof(*fabric));
-	if (!fabric)
+	if (!attr || !(attr->flags & FI_PEER)) {
+		FI_WARN(&sharp_prov, FI_LOG_CORE, "FI_PEER flag required\n");
+                return -EINVAL;
+	}
+
+	if (!peer_context || peer_context->size < sizeof(*peer_context)) {
+		FI_WARN(&sharp_prov, FI_LOG_CORE, "invalid peer EQ context\n");
+                return -EINVAL;
+	}
+
+	eq = calloc(1, sizeof(*eq));
+	if (!eq)
 		return -FI_ENOMEM;
 
-	ret = ofi_fabric_init(&sharp_prov, &sharp_fabric_attr, attr,
-			      &fabric->util_fabric, context);
+	eq->peer_eq = peer_context->eq;
+
+	ret = ofi_eq_init(fabric, attr, &eq->util_eq.eq_fid, context);
 	if (ret)
 		goto err;
 
-#if 0
-	*fabric_fid = &fabric->util_fabric.fabric_fid; ///XXX to be removed later
-	(*fabric_fid)->fid.ops = &sharp_fabric_fi_ops;
-	(*fabric_fid)->ops = &sharp_fabric_ops;
-#endif
-	fid_fabric_init(fabric_fid, &fabric->util_fabric, &sharp_fabric_fi_ops,
-		&sharp_fabric_ops);
+	*eq_fid = &eq->util_eq.eq_fid;
+	(*eq_fid)->fid.ops = &sharp_eq_fi_ops;
+	(*eq_fid)->ops = &sharp_eq_ops;
 	return 0;
 
 err:
-	free(fabric);
+	free(eq);
 	return ret;
 }
