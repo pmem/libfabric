@@ -68,11 +68,7 @@ static struct fi_ops sharp_fabric_fi_ops = {
 	.ops_open = fi_no_ops_open,
 };
 
-/// @brief XXX to be added to fabric.h later
-/// @param fabric_fid 
-/// @param util_fabric 
-/// @param fid_ops 
-/// @param ops 
+/// XXX to be added to fabric.h later
 static inline void 
 fid_fabric_init(struct fid_fabric **fabric_fid,
 		struct util_fabric *util_fabric, struct fi_ops *fid_ops,
