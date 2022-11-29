@@ -86,7 +86,6 @@ int coll_cq_init(struct fid_domain *domain,
 	coll_domain = container_of(domain, struct coll_domain, util_domain.domain_fid.fid);
 	provider = coll_domain->util_domain.fabric->prov;
 
-
 	if (!attr || !(attr->flags & FI_PEER)) {
 		FI_WARN(provider, FI_LOG_CORE, "FI_PEER flag required\n");
                 return -EINVAL;
@@ -103,8 +102,7 @@ int coll_cq_init(struct fid_domain *domain,
 
 	cq->peer_cq = peer_context->cq;
 
-	ret = ofi_cq_init(provider, domain, attr, &cq->util_cq, &ofi_cq_progress,
-			  context);
+	ret = ofi_cq_init(provider, domain, attr, &cq->util_cq, progress, context);
 	if (ret)
 		goto err;
 
