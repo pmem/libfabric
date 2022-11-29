@@ -202,7 +202,7 @@ static int barrier_test_run()
 	if (err) {
 		FT_DEBUG("barrier collective not supported: %d (%s)\n", err,
 			 fi_strerror(err));
-		return 0;
+		return err == -FI_ENOSYS? -FI_EPERM : err;
 	}
 
 	coll_addr = fi_mc_addr(coll_mc);
@@ -241,7 +241,7 @@ static int sum_all_reduce_test_run()
 	if (err) {
 		FT_DEBUG("SUM AllReduce collective not supported: %d (%s)\n",
 			 err, fi_strerror(err));
-		return 0;
+		return err == -FI_ENOSYS? -FI_EPERM : err;
 	}
 
 	for (i = av_set_attr.start_addr;
@@ -290,7 +290,7 @@ static int all_gather_test_run()
 	if (ret) {
 		FT_DEBUG("SUM AllReduce collective not supported: %d (%s)\n", ret,
 			 fi_strerror(ret));
-		return 0;
+		return ret == -FI_ENOSYS? -FI_EPERM : ret;
 	}
 
 	result = malloc(pm_job.num_ranks * sizeof(*expect_result));
@@ -356,7 +356,7 @@ static int scatter_test_run()
 	if (ret) {
 		FT_DEBUG("Scatter collective not supported: %d (%s)\n", ret,
 			 fi_strerror(ret));
-		return 0;
+		return ret == -FI_ENOSYS? -FI_EPERM : ret;
 	}
 
 	data = malloc(data_size);
@@ -416,7 +416,7 @@ static int broadcast_test_run()
 	if (err) {
 		FT_DEBUG("Broadcast collective not supported: %d (%s)\n", err,
 			 fi_strerror(err));
-		return 0;
+		return err == -FI_ENOSYS? -FI_EPERM : err;
 	}
 
 	result = malloc(data_cnt * sizeof(*result));
@@ -621,13 +621,15 @@ int multinode_run_tests(int argc, char **argv)
 			goto out;
 
 		ret = tests[i].run();
-		if (ret)
+
+		if (ret && (-FI_EPERM != ret))
 			goto out;
 
 		pm_barrier();
 		tests[i].teardown();
 		FT_DEBUG("Run Complete...\n");
-		FT_DEBUG("Test Complete: %s \n", tests[i].name);
+		FT_DEBUG("Test %s: %s \n", ret?"Skipped":"Complete", tests[i].name);
+		ret = 0;
 	}
 
 out:
