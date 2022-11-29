@@ -97,6 +97,13 @@ int rxm_eq_open(struct fid_fabric *fabric_fid, struct fi_eq_attr *attr,
 			goto err2;
 	}
 
+	if (rxm_fabric->offload_coll_fabric) {
+		ret = fi_eq_open(rxm_fabric->offload_coll_fabric, &peer_attr,
+				 &rxm_eq->offload_coll_eq, &peer_context);
+		if (ret)
+			goto err2;
+	}
+
 	rxm_eq->util_eq.eq_fid.fid.ops = &rxm_eq_fi_ops;
 	*eq_fid = &rxm_eq->util_eq.eq_fid;
 	return 0;
