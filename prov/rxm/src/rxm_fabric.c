@@ -128,20 +128,20 @@ static int rxm_fabric_init_offload_coll(struct rxm_fabric *fabric)
 	 */
 	struct fi_info *hints, *offload_coll_info;
 	struct fid_fabric *offload_coll_fabric;
+	char *offload_coll_name;
 	int ret;
+
+	fi_param_get_str(NULL, "offload_coll_provider", &offload_coll_name);
+
+	if (!strlen(offload_coll_name)) {
+		return 0;
+	}
 
 	hints = fi_allocinfo();
 	if (!hints)
 		return -FI_ENOMEM;
 
-	hints->fabric_attr->prov_name = strdup(OFI_OFFLOAD_PREFIX "sharp"); // XXX to be fixed
-																		// provider is discovered
-																		// by feature 
-	if (!hints->fabric_attr->prov_name) {
-		fi_freeinfo(hints);
-		return -FI_ENOMEM;
-	}
-
+	hints->fabric_attr->prov_name = strdup(offload_coll_name);
 	hints->mode = FI_PEER_TRANSFER;
 	ret = fi_getinfo(OFI_VERSION_LATEST, NULL, NULL, OFI_OFFLOAD_PROV_ONLY,
 			 hints, &offload_coll_info);
