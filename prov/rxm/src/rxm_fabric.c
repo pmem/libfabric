@@ -129,6 +129,7 @@ static int rxm_fabric_init_offload_coll(struct rxm_fabric *fabric)
 	struct fi_info *hints, *offload_coll_info;
 	struct fid_fabric *offload_coll_fabric;
 	char *offload_coll_name;
+	char *buf;
 	int ret;
 
 	fi_param_get_str(NULL, "offload_coll_provider", &offload_coll_name);
@@ -141,7 +142,13 @@ static int rxm_fabric_init_offload_coll(struct rxm_fabric *fabric)
 	if (!hints)
 		return -FI_ENOMEM;
 
-	hints->fabric_attr->prov_name = strdup(offload_coll_name);
+	if (strstr(offload_coll_name, OFI_OFFLOAD_PREFIX) == offload_coll_name) {
+		hints->fabric_attr->prov_name = strdup(offload_coll_name);
+	} else {
+		asprintf(&buf, "%s%s", OFI_OFFLOAD_PREFIX, offload_coll_name);
+		hints->fabric_attr->prov_name = strdup(buf);
+		free(buf);
+	}
 	hints->mode = FI_PEER_TRANSFER;
 	ret = fi_getinfo(OFI_VERSION_LATEST, NULL, NULL, OFI_OFFLOAD_PROV_ONLY,
 			 hints, &offload_coll_info);
