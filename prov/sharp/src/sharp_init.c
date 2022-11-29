@@ -36,12 +36,12 @@
 #include "sharp.h"
 
 struct sharp_env sharp_env = {
-	.sharp_ib_port = 1,
+	.ib_port = 1,
 };
 
 static void sharp_init_env(void)
 {
-	fi_param_get_size_t(&sharp_prov, "sharp_ib_port", &sharp_env.sharp_ib_port);
+	fi_param_get_size_t(&sharp_prov, "ib_port", &sharp_env.ib_port);
 }
 
 static int sharp_getinfo(uint32_t version, const char *node, const char *service,
