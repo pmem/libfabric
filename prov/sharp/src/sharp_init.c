@@ -86,7 +86,7 @@ SHARP_INI
 #if HAVE_SHARP_DL
 	ofi_hmem_init();
 #endif
-	fi_param_define(&sharp_prov, "sharp_ib_port", FI_PARAM_INT,
+	fi_param_define(&sharp_prov, "ib_port", FI_PARAM_INT,
 			"IB device port used by SHARP \
 			 Default: 1");
 
