@@ -183,4 +183,16 @@ int sharp_cq_open(struct fid_domain *domain, struct fi_cq_attr *attr,
 int sharp_eq_open(struct fid_fabric *fabric, struct fi_eq_attr *attr,
 		 struct fid_eq **eq_fid, void *context);
 
+void sharp_collective_comp(struct util_coll_operation *coll_op);
+
+ssize_t sharp_ep_barrier(struct fid_ep *ep, fi_addr_t coll_addr, void *context);
+
+ssize_t sharp_ep_barrier2(struct fid_ep *ep, fi_addr_t coll_addr, uint64_t flags,
+			 void *context);
+
+ssize_t sharp_ep_allreduce(struct fid_ep *ep, const void *buf, size_t count,
+			  void *desc, void *result, void *result_desc,
+			  fi_addr_t coll_addr, enum fi_datatype datatype,
+			  enum fi_op op, uint64_t flags, void *context);
+
 #endif

@@ -121,22 +121,6 @@ static struct fi_ops sharp_ep_fid_ops = {
 	.ops_open = fi_no_ops_open,
 };
 
-static ssize_t sharp_ep_barrier(struct fid_ep *ep, fi_addr_t coll_addr,
-		       void *context)
-{
-	return -FI_ENOSYS;
-
-}
-
-static ssize_t 
-sharp_ep_allreduce(struct fid_ep *ep, const void *buf, size_t count, void *desc,
-		 void *result, void *result_desc, fi_addr_t coll_addr,
-		 enum fi_datatype datatype, enum fi_op op, uint64_t flags,
-		 void *context)
-{
-	return -FI_ENOSYS;
-}
-
 static struct fi_ops_collective sharp_ep_collective_ops = {
 	.size = sizeof(struct fi_ops_collective),
 	.barrier = sharp_ep_barrier,
@@ -149,6 +133,7 @@ static struct fi_ops_collective sharp_ep_collective_ops = {
 	.scatter = fi_coll_no_scatter,
 	.gather = fi_coll_no_gather,
 	.msg = fi_coll_no_msg,
+	.barrier2 = sharp_ep_barrier2,
 };
 static struct fi_ops_ep sharp_ep_ops = {
 	.size = sizeof(struct fi_ops_ep),

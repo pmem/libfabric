@@ -46,9 +46,9 @@ int sharp_query_collective(struct fid_domain *domain,
 
 	switch (coll) {
 	case FI_BARRIER:
-		// return FI_SUCCESS; //XXX to be change when barier operation is implemented
+		return FI_SUCCESS; //XXX to be integrated w/ sharp_query
 	case FI_ALLREDUCE:
-		// return FI_SUCCESS; //XXX to be change when allreduce operation is implemented
+		return FI_SUCCESS; //XXX to be integrated w/ sharp_query
 	case FI_ALLGATHER:
 	case FI_SCATTER:
 	case FI_BROADCAST:
@@ -130,7 +130,7 @@ sharp_create_op(struct fid_ep *ep, struct sharp_mc *sharp_mc,
 
 	coll_op->ep = ep;
 	coll_op->cid = sharp_get_next_id(sharp_mc);
-	coll_op->mc = sharp_mc;
+	coll_op->mc = (struct util_coll_mc *)sharp_mc; //XXX
 	coll_op->type = type;
 	coll_op->flags = flags;
 	coll_op->context = context;
@@ -612,13 +612,22 @@ int sharp_join_collective(struct fid_ep *ep, const void *addr,
 	struct sharp_mc *sharp_mc;
 	struct util_coll_operation *join_op;
 	struct util_ep *util_ep;
+	struct sharp_ep *sharp_ep;
 	struct fi_collective_addr *c_addr;
 	fi_addr_t sharp_addr;
 	const struct fid_av_set *set;
+	struct fid_mc *util_mc;
 	int ret;
 
 	if (!(flags & FI_COLLECTIVE))
 		return -FI_ENOSYS;
+
+	util_ep = container_of(ep, struct util_ep, ep_fid);
+	sharp_ep = container_of(ep, struct sharp_ep, util_ep.ep_fid);
+
+	ret = fi_join(sharp_ep->peer_ep, addr, flags | FI_PEER, &util_mc, context);
+	if (ret)
+		return ret;
 
 	c_addr = (struct fi_collective_addr *)addr;
 	sharp_addr = c_addr->coll_addr;
@@ -628,14 +637,17 @@ int sharp_join_collective(struct fid_ep *ep, const void *addr,
 
 	if (sharp_addr == FI_ADDR_NOTAVAIL) {
 		assert(av_set->av->av_set);
-		sharp_mc = &av_set->av->av_set->coll_mc;
+		sharp_mc = (struct sharp_mc*) &av_set->av->av_set->coll_mc; //XXX
 	} else {
-		sharp_mc = (struct util_coll_mc*) ((uintptr_t) sharp_addr);
+		sharp_mc = (struct sharp_mc*) (struct util_coll_mc*) ((uintptr_t) sharp_addr); //XXX
 	}
 
 	new_sharp_mc = sharp_create_mc(av_set, context);
 	if (!new_sharp_mc)
-		return -FI_ENOMEM;
+	{
+		ret = FI_ENOMEM;
+		goto err0;
+	}
 
 	/* get the rank */
 	sharp_find_local_rank(ep, new_sharp_mc);
@@ -648,7 +660,7 @@ int sharp_join_collective(struct fid_ep *ep, const void *addr,
 		goto err1;
 	}
 
-	join_op->data.join.new_mc = new_sharp_mc;
+	join_op->data.join.new_mc = (struct util_coll_mc *)new_sharp_mc; //XXX
 
 	ret = ofi_bitmask_create(&join_op->data.join.data, OFI_MAX_GROUP_ID);
 	if (ret)
@@ -658,7 +670,6 @@ int sharp_join_collective(struct fid_ep *ep, const void *addr,
 	if (ret)
 		goto err3;
 
-	util_ep = container_of(ep, struct util_ep, ep_fid);
 
 #if 0 ///XXX
 	ret = sharp_do_allreduce(join_op, util_ep->coll_cid_mask->bytes,
@@ -676,6 +687,7 @@ int sharp_join_collective(struct fid_ep *ep, const void *addr,
 	sharp_progress_work(util_ep, join_op);
 
 	*mc = &new_sharp_mc->mc_fid;
+	new_sharp_mc->oob_fid_mc = util_mc;
 	return FI_SUCCESS;
 
 err4:
@@ -686,5 +698,102 @@ err2:
 	free(join_op);
 err1:
 	fi_close(&new_sharp_mc->mc_fid.fid);
+err0:
+	fi_close(&util_mc->fid);
+	return ret;
+}
+
+ssize_t sharp_ep_barrier2(struct fid_ep *ep, fi_addr_t coll_addr, uint64_t flags,
+			 void *context)
+{
+	struct sharp_mc *sharp_mc;
+	struct util_coll_operation *barrier_op;
+	struct util_ep *util_ep;
+	int ret;
+
+	sharp_mc = (struct sharp_mc*) (struct util_coll_mc*) ((uintptr_t) coll_addr); //XXX
+
+	barrier_op = sharp_create_op(ep, sharp_mc, UTIL_COLL_BARRIER_OP,
+				    flags, context,
+				    sharp_collective_comp);
+	if (!barrier_op)
+		return -FI_ENOMEM;
+
+#if 0
+	send = ~barrier_op->mc->local_rank;
+	ret = coll_do_allreduce(barrier_op, &send,
+				&barrier_op->data.barrier.data,
+				&barrier_op->data.barrier.tmp, 1, FI_UINT64,
+				FI_BAND);
+	if (ret)
+		goto err1;
+#endif
+	ret = sharp_sched_comp(barrier_op);
+	if (ret)
+		goto err1;
+
+	util_ep = container_of(ep, struct util_ep, ep_fid);
+	sharp_progress_work(util_ep, barrier_op);
+
+	return FI_SUCCESS;
+err1:
+	free(barrier_op);
+	return ret;
+
+}
+
+ssize_t sharp_ep_barrier(struct fid_ep *ep, fi_addr_t coll_addr, void *context)
+{
+	return sharp_ep_barrier2(ep, coll_addr, 0, context);
+}
+
+
+ssize_t sharp_ep_allreduce(struct fid_ep *ep, const void *buf, size_t count,
+			  void *desc, void *result, void *result_desc,
+			  fi_addr_t coll_addr, enum fi_datatype datatype,
+			  enum fi_op op, uint64_t flags, void *context)
+{
+	struct sharp_mc *sharp_mc;
+	struct util_coll_operation *allreduce_op;
+	struct util_ep *util_ep;
+	int ret;
+
+	sharp_mc = (struct sharp_mc *) ((uintptr_t) coll_addr);
+	allreduce_op = sharp_create_op(ep, sharp_mc, UTIL_COLL_ALLREDUCE_OP,
+				      flags, context,
+				      sharp_collective_comp);
+	if (!allreduce_op)
+		return -FI_ENOMEM;
+
+	allreduce_op->data.allreduce.size = count * ofi_datatype_size(datatype);
+	allreduce_op->data.allreduce.data = calloc(count,
+						   ofi_datatype_size(datatype));
+	if (!allreduce_op->data.allreduce.data) {
+		ret = -FI_ENOMEM;
+		goto err1;
+	}
+
+#if 0
+	ret = coll_do_allreduce(allreduce_op, buf, result,
+				allreduce_op->data.allreduce.data, count,
+				datatype, op);
+	if (ret)
+		goto err2;
+#else
+	memcpy(result, buf, count * ofi_datatype_size(datatype));
+#endif
+	ret = sharp_sched_comp(allreduce_op);
+	if (ret)
+		goto err2;
+
+	util_ep = container_of(ep, struct util_ep, ep_fid);
+	sharp_progress_work(util_ep, allreduce_op);
+
+	return FI_SUCCESS;
+
+err2:
+	free(allreduce_op->data.allreduce.data);
+err1:
+	free(allreduce_op);
 	return ret;
 }
