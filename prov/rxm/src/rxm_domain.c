@@ -901,7 +901,7 @@ int rxm_domain_open(struct fid_fabric *fabric, struct fi_info *info,
 			attr.datatype_attr.count =1;
 			attr.datatype_attr.size =1;
 			attr.mode = 0;
-			for (int i = FI_BARRIER; i < FI_COLLECTIVE_OP_MAX; i++) {
+			for (int i = FI_BARRIER; i < FI_GATHER; i++) {
 				ret = fi_query_collective(rxm_domain->offload_coll_domain,
 					i, &attr, 0);
 				if (FI_SUCCESS == ret)
