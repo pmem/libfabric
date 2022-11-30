@@ -249,6 +249,7 @@ enum fi_collective_op {
 	FI_REDUCE,
 	FI_SCATTER,
 	FI_GATHER,
+	FI_COLLECTIVE_OP_MAX, //must be always the last value of this enum
 };
 
 #endif
