@@ -384,37 +384,28 @@ static int rxm_join_coll(struct fid_ep *ep, const void *addr, uint64_t flags,
 		    struct fid_mc **mc, void *context)
 {
 	struct rxm_ep *rxm_ep;
-	struct fid_mc *util_mc;
-	int ret;
 
 	if (!(flags & FI_COLLECTIVE))
 		return -FI_ENOSYS;
 
 	rxm_ep = container_of(ep, struct rxm_ep, util_ep.ep_fid);
 
-	ret = fi_join(rxm_ep->util_coll_ep, addr, flags, &util_mc, context);
-	if (ret)
-		return ret;
-	if (rxm_ep->offload_coll_ep) {
-		ret = fi_join(rxm_ep->offload_coll_ep, addr, flags, mc, context);
+	//FI_PEER flag is used to force util_coll context 
+	//where fi_join() is called from offload provider
+	if (flags & FI_PEER) 
+		return fi_join(rxm_ep->util_coll_ep, addr, flags, mc, context);
+	if (rxm_ep->offload_coll_ep)
+		return fi_join(rxm_ep->offload_coll_ep, addr, flags, mc, context);
+#if 0
 		if (ret)
 			goto err_util_coll;
 		// It is collective offload provider responsibility to store util_coll provider mc
 		ret = (*mc)->fid.ops->bind(&((*mc)->fid), &(util_mc->fid), 0);
 		if (ret)
 			goto err_off_coll;
-
-	} else {
-		*mc = util_mc;
-	}
-	return 0;
-
-err_off_coll:
-	fi_close(&(*mc)->fid);
-
-err_util_coll:
-	fi_close(&(util_mc)->fid);
-	return ret;
+#endif
+	else
+		return fi_join(rxm_ep->util_coll_ep, addr, flags, mc, context);
 }
 
 static struct fi_ops_cm rxm_ops_cm = {
