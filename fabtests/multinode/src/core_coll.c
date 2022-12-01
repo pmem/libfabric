@@ -603,7 +603,10 @@ int multinode_run_tests(int argc, char **argv)
 			ret = tests[i].query();
 			if (ret) {
 				FT_DEBUG("Test skipped: operation %s not supported.\n", tests[i].name);
+<<<<<<< HEAD
 				ret = FI_SUCCESS;
+=======
+>>>>>>> 803c5778f (fabtests/multinode: Skip tests for unsupported collective operations)
 				continue;
 			}
 		}
