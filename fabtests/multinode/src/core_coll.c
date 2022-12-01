@@ -85,7 +85,7 @@ static int wait_for_event(uint32_t event)
 	do {
 		err = fi_eq_read(eq, &ev, NULL, 0, 0);
 		if (err >= 0) {
-			FT_DEBUG("found eq entry %d\n", event);
+			FT_DEBUG("found eq entry %d", event);
 			if (ev == event) {
 				return FI_SUCCESS;
 			}
@@ -145,19 +145,17 @@ static int coll_setup_w_start_addr_stride(int start_addr, int stride)
 
 	err = fi_av_set(av, &av_set_attr, &av_set, NULL);
 	if (err)
-		FT_DEBUG("av_set creation failed ret = %d\n", err);
+		FT_PRINTERR("fi_av_set", err);
 
 	err = fi_av_set_addr(av_set, &world_addr);
 	if (err) {
-		FT_DEBUG("failed to get collective addr = %d (%s)\n", err,
-			 fi_strerror(err));
+		FT_PRINTERR("failed to get collective addr - fi_av_set_addr", err);
 		return err;
 	}
 
 	err = fi_join_collective(ep, world_addr, av_set, 0, &coll_mc, NULL);
 	if (err) {
-		FT_DEBUG("collective join failed ret = %d (%s)\n", err,
-			 fi_strerror(err));
+		FT_PRINTERR("fi_join_collective", err);
 		return err;
 	}
 
@@ -188,31 +186,40 @@ static int join_test_run()
 	return FI_SUCCESS;
 }
 
-static int barrier_test_run()
+static int test_query(enum fi_collective_op coll_op, enum fi_op op, 
+	enum fi_datatype datatype)
 {
 	struct fi_collective_attr attr;
-	uint64_t done_flag;
-	int err;
 
-	attr.op = FI_NOOP;
-	attr.datatype = FI_VOID;
+	attr.op = op;
+	attr.datatype = datatype;
 	attr.mode = 0;
 
-	err = fi_query_collective(domain, FI_BARRIER, &attr, 0);
-	if (err) {
-		FT_DEBUG("barrier collective not supported: %d (%s)\n", err,
-			 fi_strerror(err));
-		return err;
-	}
+	return fi_query_collective(domain, coll_op, &attr, 0);
+}
+
+static int barrier_test_query()
+{
+	return test_query(FI_BARRIER, FI_NOOP, FI_VOID);
+}
+
+static int barrier_test_run()
+{
+	uint64_t done_flag;
+	int err;
 
 	coll_addr = fi_mc_addr(coll_mc);
 	err = fi_barrier(ep, coll_addr, &done_flag);
 	if (err) {
-		FT_DEBUG("collective barrier failed: %d (%s)\n", err, fi_strerror(err));
+		FT_PRINTERR("collective barrier failed - fi_barrier", err);
 		return err;
 	}
 
 	return wait_for_comp(&done_flag);
+}
+static int sum_all_reduce_test_query()
+{
+	return test_query(FI_ALLREDUCE, FI_SUM, FI_UINT64);
 }
 
 static int sum_all_reduce_test_run()
@@ -224,7 +231,6 @@ static int sum_all_reduce_test_run()
 	const uint64_t base_data_value = 1234; /* any arbitrary value != 0 */
 	size_t count = 1;
 	uint64_t i;
-	struct fi_collective_attr attr;
 	int err;
 
 	if (!is_my_rank_participating())
@@ -233,16 +239,6 @@ static int sum_all_reduce_test_run()
 	// Set to rank + base_data_value to make the participation of rank 0
 	// verifiable
 	data = base_data_value + pm_job.my_rank;
-
-	attr.op = FI_SUM;
-	attr.datatype = FI_UINT64;
-	attr.mode = 0;
-	err = fi_query_collective(domain, FI_ALLREDUCE, &attr, 0);
-	if (err) {
-		FT_DEBUG("SUM AllReduce collective not supported: %d (%s)\n",
-			 err, fi_strerror(err));
-		return err;
-	}
 
 	for (i = av_set_attr.start_addr;
 	     i <= av_set_attr.end_addr;
@@ -254,8 +250,7 @@ static int sum_all_reduce_test_run()
 	err = fi_allreduce(ep, &data, count, NULL, &result, NULL, coll_addr, FI_UINT64,
 			   FI_SUM, 0, &done_flag);
 	if (err) {
-		FT_DEBUG("collective allreduce failed: %d (%s)\n",
-			 err, fi_strerror(err));
+		FT_PRINTERR("collective allreduce failed - fi_allreduce", err);
 		return err;
 	}
 
@@ -266,9 +261,14 @@ static int sum_all_reduce_test_run()
 	if (result == expect_result)
 		return FI_SUCCESS;
 
-	FT_DEBUG("allreduce failed; expect: %ld, actual: %ld\n",
+	FT_DEBUG("allreduce failed; expect: %ld, actual: %ld",
 		 expect_result, result);
 	return -FI_ENOEQ;
+}
+
+static int all_gather_test_query()
+{
+	return test_query(FI_ALLGATHER, FI_NOOP, FI_UINT64);
 }
 
 static int all_gather_test_run()
@@ -279,19 +279,7 @@ static int all_gather_test_run()
 	uint64_t data = pm_job.my_rank;
 	size_t count = 1;
 	uint64_t i;
-	struct fi_collective_attr attr;
 	int ret;
-
-	attr.op = FI_NOOP;
-	attr.datatype = FI_UINT64;
-	attr.mode = 0;
-
-	ret = fi_query_collective(domain, FI_ALLGATHER, &attr, 0);
-	if (ret) {
-		FT_DEBUG("SUM AllReduce collective not supported: %d (%s)\n", ret,
-			 fi_strerror(ret));
-		return ret;
-	}
 
 	result = malloc(pm_job.num_ranks * sizeof(*expect_result));
 	if (!result)
@@ -310,8 +298,7 @@ static int all_gather_test_run()
 	ret = fi_allgather(ep, &data, count, NULL, result, NULL, coll_addr,
 			   FI_UINT64, 0, &done_flag);
 	if (ret) {
-		FT_DEBUG("collective allreduce failed: %d (%s)\n",
-			 ret, fi_strerror(ret));
+		FT_PRINTERR("collective allreduce failed:", ret);
 		goto out;
 	}
 
@@ -322,7 +309,7 @@ static int all_gather_test_run()
 	for (i = 0; i < pm_job.num_ranks; i++) {
 		if ((expect_result[i]) != result[i]) {
 			FT_DEBUG("allgather failed; expect[%ld]: %ld, "
-				 "actual[%ld]: %ld\n", i, expect_result[i],
+				 "actual[%ld]: %ld", i, expect_result[i],
 				 i, result[i]);
 			ret = -1;
 			goto out;
@@ -337,27 +324,20 @@ out:
 	return ret;
 }
 
+static int scatter_test_query()
+{
+	return test_query(FI_SCATTER, FI_NOOP, FI_UINT64);
+}
+
 static int scatter_test_run()
 {
 	uint64_t done_flag;
 	uint64_t result;
 	uint64_t *data;
 	uint64_t i;
-	struct fi_collective_attr attr;
 	fi_addr_t root = 0;
 	size_t data_size = pm_job.num_ranks * sizeof(*data);
-	int ret;
-
-	attr.op = FI_NOOP;
-	attr.datatype = FI_UINT64;
-	attr.mode = 0;
-
-	ret = fi_query_collective(domain, FI_SCATTER, &attr, 0);
-	if (ret) {
-		FT_DEBUG("Scatter collective not supported: %d (%s)\n", ret,
-			 fi_strerror(ret));
-		return ret;
-	}
+	int err;
 
 	data = malloc(data_size);
 	if (!data)
@@ -369,33 +349,38 @@ static int scatter_test_run()
 
 	coll_addr = fi_mc_addr(coll_mc);
 	if (pm_job.my_rank == root) {
-		ret = fi_scatter(ep, data, 1, NULL, &result, NULL, coll_addr,
+		err = fi_scatter(ep, data, 1, NULL, &result, NULL, coll_addr,
 				 root, FI_UINT64, 0, &done_flag);
 	} else {
-		ret = fi_scatter(ep, NULL, 1, NULL, &result, NULL, coll_addr,
+		err = fi_scatter(ep, NULL, 1, NULL, &result, NULL, coll_addr,
 				 root, FI_UINT64, 0, &done_flag);
 	}
-	if (ret) {
-		FT_DEBUG("collective scatter failed: %d (%s)\n", ret, fi_strerror(ret));
+	if (err) {
+		FT_PRINTERR("collective scatter failed - fi_scatter", err);
 		goto out;
 	}
 
-	ret = wait_for_comp(&done_flag);
-	if (ret)
+	err = wait_for_comp(&done_flag);
+	if (err)
 		goto out;
 
 	if (data[pm_job.my_rank] != result) {
-		FT_DEBUG("scatter failed; expect: %ld, actual: %ld\n",
+		FT_DEBUG("scatter failed; expect: %ld, actual: %ld",
 			 data[pm_job.my_rank], result);
-		ret = -1;
+		err = -1;
 		goto out;
 	}
 
-	ret = FI_SUCCESS;
+	err = FI_SUCCESS;
 
 out:
 	free(data);
-	return ret;
+	return err;
+}
+
+static int broadcast_test_query()
+{
+	return test_query(FI_BROADCAST, FI_NOOP, FI_UINT64);
 }
 
 static int broadcast_test_run()
@@ -403,21 +388,9 @@ static int broadcast_test_run()
 	uint64_t done_flag;
 	uint64_t *result, *data;
 	uint64_t i;
-	struct fi_collective_attr attr;
 	fi_addr_t root = 0;
 	size_t data_cnt = pm_job.num_ranks;
 	int err;
-
-	attr.op = FI_NOOP;
-	attr.datatype = FI_UINT64;
-	attr.mode = 0;
-
-	err = fi_query_collective(domain, FI_BROADCAST, &attr, 0);
-	if (err) {
-		FT_DEBUG("Broadcast collective not supported: %d (%s)\n", err,
-			 fi_strerror(err));
-		return err;
-	}
 
 	result = malloc(data_cnt * sizeof(*result));
 	if (!result)
@@ -441,8 +414,7 @@ static int broadcast_test_run()
 				   root, FI_UINT64, 0, &done_flag);
 	}
 	if (err) {
-		FT_DEBUG("broadcast scatter failed: %d (%s)\n",
-			 err, fi_strerror(err));
+		FT_PRINTERR("broadcast scatter failed - fi_broadcast", err);
 		goto out;
 	}
 
@@ -458,7 +430,7 @@ static int broadcast_test_run()
 	for (i = 0; i < data_cnt; i++) {
 		if (result[i] != data[i]) {
 			FT_DEBUG("broadcast failed; expect: %ld, "
-				 "actual: %ld\n", data[i], result[i]);
+				 "actual: %ld", data[i], result[i]);
 			err = -1;
 			goto out;
 		}
@@ -475,42 +447,49 @@ struct coll_test tests[] = {
 	{
 		.name = "join_test",
 		.setup = coll_setup,
+		.query = NULL,
 		.run = join_test_run,
 		.teardown = coll_teardown
 	},
 	{
 		.name = "barrier_test",
 		.setup = coll_setup,
+		.query = barrier_test_query,
 		.run = barrier_test_run,
 		.teardown = coll_teardown
 	},
 	{
 		.name = "sum_all_reduce_test",
 		.setup = coll_setup,
+		.query = sum_all_reduce_test_query,
 		.run = sum_all_reduce_test_run,
 		.teardown = coll_teardown
 	},
 	{
 		.name = "sum_all_reduce_w_stride_test",
 		.setup = coll_setup_w_stride,
+		.query = sum_all_reduce_test_query,
 		.run = sum_all_reduce_test_run,
 		.teardown = coll_teardown
 	},
 	{
 		.name = "all_gather_test",
 		.setup = coll_setup,
+		.query = all_gather_test_query,
 		.run = all_gather_test_run,
 		.teardown = coll_teardown
 	},
 	{
 		.name = "scatter_test",
 		.setup = coll_setup,
+		.query = scatter_test_query,
 		.run = scatter_test_run,
 		.teardown = coll_teardown
 	},
 	{
 		.name = "broadcast_test",
 		.setup = coll_setup,
+		.query = broadcast_test_query,
 		.run = broadcast_test_run,
 		.teardown = coll_teardown,
 	},
@@ -564,7 +543,7 @@ static int multinode_setup_fabric(int argc, char **argv)
 	pm_job.name_len = len;
 	pm_job.names = malloc(len * pm_job.num_ranks);
 	if (!pm_job.names) {
-		FT_ERR("error allocating memory for address exchange\n");
+		FT_ERR("error allocating memory for address exchange");
 		err = -FI_ENOMEM;
 		goto errout;
 	}
@@ -613,21 +592,34 @@ int multinode_run_tests(int argc, char **argv)
 		return ret;
 
 	for (i = 0; i < NUM_TESTS && !ret; i++) {
-		FT_DEBUG("Running Test: %s \n", tests[i].name);
+		FT_DEBUG("Running Test: %s", tests[i].name);
+		if (tests[i].query) {
+			ret = tests[i].query();
+			if (ret) {
+				FT_DEBUG("Test skipped: operation %s not supported.", tests[i].name);
+				ret = FI_SUCCESS;
+				continue;
+			}
+		}
 
 		ret = tests[i].setup();
-		FT_DEBUG("Setup Complete...\n");
-		if (ret)
+		if (ret) {
+			FT_DEBUG("Setup Failed...");
 			goto out;
+		}
+		FT_DEBUG("Setup Complete...");
 
 		ret = tests[i].run();
-		if (ret)
+
+		if (ret) {
+			FT_DEBUG("Test Failed: %s",  tests[i].name);
 			goto out;
+		}
 
 		pm_barrier();
 		tests[i].teardown();
-		FT_DEBUG("Run Complete...\n");
-		FT_DEBUG("Test Complete: %s \n", tests[i].name);
+		FT_DEBUG("Run Complete...");
+		FT_DEBUG("Test Complete: %s",  tests[i].name);
 	}
 
 out:

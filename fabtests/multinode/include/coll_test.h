@@ -34,12 +34,14 @@
 
 
 typedef int (*coll_test_setup_t)();
+typedef int (*coll_test_query_t)();
 typedef int (*coll_test_run_t)();
 typedef void (*coll_test_teardown_t)();
 
 struct coll_test {
         char *name;
         coll_test_setup_t setup;
+        coll_test_query_t query;
         coll_test_run_t run;
         coll_test_teardown_t teardown;
 };
