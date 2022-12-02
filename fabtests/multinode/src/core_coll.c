@@ -85,7 +85,7 @@ static int wait_for_event(uint32_t event)
 	do {
 		err = fi_eq_read(eq, &ev, NULL, 0, 0);
 		if (err >= 0) {
-			FT_DEBUG("found eq entry %d", event);
+			FT_DEBUG("found eq entry %d\n", event);
 			if (ev == event) {
 				return FI_SUCCESS;
 			}
@@ -172,13 +172,18 @@ static int coll_setup_w_stride()
 	return coll_setup_w_start_addr_stride(1, 2);
 }
 
-static void coll_teardown()
+static int coll_teardown()
 {
+	int ret;
 	if (!is_my_rank_participating())
-		return;
+		return FI_SUCCESS;
 
-	fi_close(&coll_mc->fid);
-	fi_close(&av_set->fid);
+	ret = fi_close(&coll_mc->fid);
+	if (ret)
+		fi_close(&av_set->fid);
+	else
+		ret = fi_close(&av_set->fid);
+	return ret;
 }
 
 static int join_test_run()
@@ -186,7 +191,7 @@ static int join_test_run()
 	return FI_SUCCESS;
 }
 
-static int test_query(enum fi_collective_op coll_op, enum fi_op op, 
+static int test_query(enum fi_collective_op coll_op, enum fi_op op,
 	enum fi_datatype datatype)
 {
 	struct fi_collective_attr attr;
@@ -198,15 +203,13 @@ static int test_query(enum fi_collective_op coll_op, enum fi_op op,
 	return fi_query_collective(domain, coll_op, &attr, 0);
 }
 
-static int barrier_test_query()
-{
-	return test_query(FI_BARRIER, FI_NOOP, FI_VOID);
-}
-
-static int barrier_test_run()
+static int barrier_test_run(enum fi_collective_op coll_op, enum fi_op op, 
+		enum fi_datatype datatype)
 {
 	uint64_t done_flag;
 	int err;
+
+	assert(coll_op == FI_BARRIER);
 
 	coll_addr = fi_mc_addr(coll_mc);
 	err = fi_barrier(ep, coll_addr, &done_flag);
@@ -217,12 +220,9 @@ static int barrier_test_run()
 
 	return wait_for_comp(&done_flag);
 }
-static int sum_all_reduce_test_query()
-{
-	return test_query(FI_ALLREDUCE, FI_SUM, FI_UINT64);
-}
 
-static int sum_all_reduce_test_run()
+static int sum_all_reduce_test_run(enum fi_collective_op coll_op, enum fi_op op,
+		enum fi_datatype datatype)
 {
 	uint64_t done_flag;
 	uint64_t result = 0;
@@ -232,6 +232,10 @@ static int sum_all_reduce_test_run()
 	size_t count = 1;
 	uint64_t i;
 	int err;
+
+	assert(coll_op == FI_ALLREDUCE);
+	assert(op == FI_SUM);
+	assert(datatype == FI_UINT64);
 
 	if (!is_my_rank_participating())
 		return FI_SUCCESS;
@@ -247,8 +251,8 @@ static int sum_all_reduce_test_run()
 	}
 
 	coll_addr = fi_mc_addr(coll_mc);
-	err = fi_allreduce(ep, &data, count, NULL, &result, NULL, coll_addr, FI_UINT64,
-			   FI_SUM, 0, &done_flag);
+	err = fi_allreduce(ep, &data, count, NULL, &result, NULL, coll_addr,
+		FI_UINT64, FI_SUM, 0, &done_flag);
 	if (err) {
 		FT_PRINTERR("collective allreduce failed - fi_allreduce", err);
 		return err;
@@ -261,17 +265,13 @@ static int sum_all_reduce_test_run()
 	if (result == expect_result)
 		return FI_SUCCESS;
 
-	FT_DEBUG("allreduce failed; expect: %ld, actual: %ld",
+	FT_DEBUG("allreduce failed; expect: %ld, actual: %ld\n",
 		 expect_result, result);
 	return -FI_ENOEQ;
 }
 
-static int all_gather_test_query()
-{
-	return test_query(FI_ALLGATHER, FI_NOOP, FI_UINT64);
-}
-
-static int all_gather_test_run()
+static int all_gather_test_run(enum fi_collective_op coll_op, enum fi_op op,
+		enum fi_datatype datatype)
 {
 	uint64_t done_flag;
 	uint64_t *result;
@@ -280,6 +280,9 @@ static int all_gather_test_run()
 	size_t count = 1;
 	uint64_t i;
 	int ret;
+
+	assert(coll_op == FI_ALLGATHER);
+	assert(datatype == FI_UINT64);
 
 	result = malloc(pm_job.num_ranks * sizeof(*expect_result));
 	if (!result)
@@ -309,7 +312,7 @@ static int all_gather_test_run()
 	for (i = 0; i < pm_job.num_ranks; i++) {
 		if ((expect_result[i]) != result[i]) {
 			FT_DEBUG("allgather failed; expect[%ld]: %ld, "
-				 "actual[%ld]: %ld", i, expect_result[i],
+				 "actual[%ld]: %ld\n", i, expect_result[i],
 				 i, result[i]);
 			ret = -1;
 			goto out;
@@ -324,12 +327,8 @@ out:
 	return ret;
 }
 
-static int scatter_test_query()
-{
-	return test_query(FI_SCATTER, FI_NOOP, FI_UINT64);
-}
-
-static int scatter_test_run()
+static int scatter_test_run(enum fi_collective_op coll_op, enum fi_op op,
+		enum fi_datatype datatype)
 {
 	uint64_t done_flag;
 	uint64_t result;
@@ -338,6 +337,9 @@ static int scatter_test_run()
 	fi_addr_t root = 0;
 	size_t data_size = pm_job.num_ranks * sizeof(*data);
 	int err;
+
+	assert(coll_op == FI_SCATTER);
+	assert(datatype == FI_UINT64);
 
 	data = malloc(data_size);
 	if (!data)
@@ -365,7 +367,7 @@ static int scatter_test_run()
 		goto out;
 
 	if (data[pm_job.my_rank] != result) {
-		FT_DEBUG("scatter failed; expect: %ld, actual: %ld",
+		FT_DEBUG("scatter failed; expect: %ld, actual: %ld\n",
 			 data[pm_job.my_rank], result);
 		err = -1;
 		goto out;
@@ -378,12 +380,8 @@ out:
 	return err;
 }
 
-static int broadcast_test_query()
-{
-	return test_query(FI_BROADCAST, FI_NOOP, FI_UINT64);
-}
-
-static int broadcast_test_run()
+static int broadcast_test_run(enum fi_collective_op coll_op, enum fi_op op,
+		enum fi_datatype datatype)
 {
 	uint64_t done_flag;
 	uint64_t *result, *data;
@@ -391,6 +389,9 @@ static int broadcast_test_run()
 	fi_addr_t root = 0;
 	size_t data_cnt = pm_job.num_ranks;
 	int err;
+
+	assert(coll_op == FI_BROADCAST);
+	assert(datatype == FI_UINT64);
 
 	result = malloc(data_cnt * sizeof(*result));
 	if (!result)
@@ -430,7 +431,7 @@ static int broadcast_test_run()
 	for (i = 0; i < data_cnt; i++) {
 		if (result[i] != data[i]) {
 			FT_DEBUG("broadcast failed; expect: %ld, "
-				 "actual: %ld", data[i], result[i]);
+				 "actual: %ld\n", data[i], result[i]);
 			err = -1;
 			goto out;
 		}
@@ -447,55 +448,71 @@ struct coll_test tests[] = {
 	{
 		.name = "join_test",
 		.setup = coll_setup,
-		.query = NULL,
 		.run = join_test_run,
-		.teardown = coll_teardown
+		.teardown = coll_teardown,
+		.coll_op = FI_BARRIER,
+		.op = FI_NOOP,
+		.datatype = FI_VOID,
 	},
 	{
 		.name = "barrier_test",
 		.setup = coll_setup,
-		.query = barrier_test_query,
 		.run = barrier_test_run,
-		.teardown = coll_teardown
+		.teardown = coll_teardown,
+		.coll_op = FI_BARRIER,
+		.op = FI_NOOP,
+		.datatype = FI_VOID,
 	},
 	{
 		.name = "sum_all_reduce_test",
 		.setup = coll_setup,
-		.query = sum_all_reduce_test_query,
 		.run = sum_all_reduce_test_run,
-		.teardown = coll_teardown
+		.teardown = coll_teardown,
+		.coll_op = FI_ALLREDUCE,
+		.op = FI_SUM,
+		.datatype = FI_UINT64,
 	},
 	{
 		.name = "sum_all_reduce_w_stride_test",
 		.setup = coll_setup_w_stride,
-		.query = sum_all_reduce_test_query,
 		.run = sum_all_reduce_test_run,
-		.teardown = coll_teardown
+		.teardown = coll_teardown,
+		.coll_op = FI_ALLREDUCE,
+		.op = FI_SUM,
+		.datatype = FI_UINT64,
 	},
 	{
 		.name = "all_gather_test",
 		.setup = coll_setup,
-		.query = all_gather_test_query,
 		.run = all_gather_test_run,
-		.teardown = coll_teardown
+		.teardown = coll_teardown,
+		.coll_op = FI_ALLGATHER,
+		.op = FI_NOOP,
+		.datatype = FI_UINT64,
 	},
 	{
 		.name = "scatter_test",
 		.setup = coll_setup,
-		.query = scatter_test_query,
 		.run = scatter_test_run,
-		.teardown = coll_teardown
+		.teardown = coll_teardown,
+		.coll_op = FI_SCATTER,
+		.op = FI_NOOP,
+		.datatype = FI_UINT64
 	},
 	{
 		.name = "broadcast_test",
 		.setup = coll_setup,
-		.query = broadcast_test_query,
 		.run = broadcast_test_run,
 		.teardown = coll_teardown,
+		.coll_op = FI_BROADCAST,
+		.op = FI_NOOP,
+		.datatype = FI_UINT64
+	},
+	{
+		.name = "empty_test_to_stop_the_sequence_of_execution",
+		.run = NULL,
 	},
 };
-
-const int NUM_TESTS = ARRAY_SIZE(tests);
 
 static inline void setup_hints()
 {
@@ -543,7 +560,7 @@ static int multinode_setup_fabric(int argc, char **argv)
 	pm_job.name_len = len;
 	pm_job.names = malloc(len * pm_job.num_ranks);
 	if (!pm_job.names) {
-		FT_ERR("error allocating memory for address exchange");
+		FT_ERR("error allocating memory for address exchange\n");
 		err = -FI_ENOMEM;
 		goto errout;
 	}
@@ -584,42 +601,45 @@ static void pm_job_free_res()
 
 int multinode_run_tests(int argc, char **argv)
 {
+	struct coll_test *test;
 	int ret = FI_SUCCESS;
-	int i;
 
 	ret = multinode_setup_fabric(argc, argv);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < NUM_TESTS && !ret; i++) {
-		FT_DEBUG("Running Test: %s", tests[i].name);
-		if (tests[i].query) {
-			ret = tests[i].query();
-			if (ret) {
-				FT_DEBUG("Test skipped: operation %s not supported.", tests[i].name);
-				ret = FI_SUCCESS;
-				continue;
-			}
+	for (test = tests; test->run && !ret; test++) {
+		FT_DEBUG("Running Test: %s\n", test->name);
+		ret = test_query(test->coll_op, test->op, test->datatype);
+		if (ret) {
+			FT_DEBUG("Test skipped: operation %s not supported.\n",
+				test->name);
+			ret = FI_SUCCESS;
+			continue;
 		}
 
-		ret = tests[i].setup();
+		ret = test->setup();
 		if (ret) {
-			FT_DEBUG("Setup Failed...");
+			FT_DEBUG("Setup Failed...\n");
 			goto out;
 		}
-		FT_DEBUG("Setup Complete...");
+		FT_DEBUG("Setup Complete...\n");
 
-		ret = tests[i].run();
+		ret = test->run(test->coll_op, test->op, test->datatype);
 
 		if (ret) {
-			FT_DEBUG("Test Failed: %s",  tests[i].name);
+			FT_DEBUG("Test Failed: %s\n",  test->name);
 			goto out;
 		}
 
 		pm_barrier();
-		tests[i].teardown();
-		FT_DEBUG("Run Complete...");
-		FT_DEBUG("Test Complete: %s",  tests[i].name);
+		ret = test->teardown();
+		if (ret) {
+			FT_DEBUG("Teardown Failed...\n");
+			goto out;
+		}
+		FT_DEBUG("Run Complete...\n");
+		FT_DEBUG("Test Complete: %s\n", tests->name);
 	}
 
 out:
