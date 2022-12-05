@@ -10,6 +10,7 @@ _sharp_files = \
 	prov/sharp/src/sharp_ep.c		\
 	prov/sharp/src/sharp_cq.c		\
 	prov/sharp/src/sharp_coll.c		\
+	prov/sharp/src/sharp_mocks.c		\
 	prov/sharp/src/sharp_progress.c
 
 if HAVE_SHARP_DL
