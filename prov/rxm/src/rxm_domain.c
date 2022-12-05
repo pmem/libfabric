@@ -844,6 +844,8 @@ int rxm_domain_open(struct fid_fabric *fabric, struct fi_info *info,
 	struct rxm_fabric *rxm_fabric;
 	struct fi_info *msg_info, *base_info;
 	struct fi_peer_domain_context peer_context;
+	struct fi_collective_attr attr;
+
 	int ret;
 
 	rxm_domain = calloc(1, sizeof(*rxm_domain));
@@ -893,7 +895,18 @@ int rxm_domain_open(struct fid_fabric *fabric, struct fi_info *info,
 					 FI_PEER, &peer_context);
 			if (ret)
 				goto err5;
-			rxm_domain->offload_coll_mask = 1;
+
+			attr.op = FI_MIN;
+			attr.datatype = FI_INT8;
+			attr.datatype_attr.count =1;
+			attr.datatype_attr.size =1;
+			attr.mode = 0;
+			for (int i = FI_BARRIER; i < FI_GATHER; i++) {
+				ret = fi_query_collective(rxm_domain->offload_coll_domain,
+					i, &attr, 0);
+				if (FI_SUCCESS == ret)
+					rxm_domain->offload_coll_mask |= BIT(i);
+			}
 		}
 	}
 
