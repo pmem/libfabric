@@ -1870,6 +1870,7 @@ int rxm_endpoint(struct fid_domain *domain, struct fi_info *info,
 
 		peer_context.peer_ops = NULL;
 		if (rxm_domain->offload_coll_mask) {
+			rxm_fabric->offload_coll_info->mode |= FI_PEER_TRANSFER;
 			ret = fi_endpoint(rxm_domain->offload_coll_domain,
 					  rxm_fabric->offload_coll_info,
 					  &rxm_ep->offload_coll_ep,
