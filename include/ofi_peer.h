@@ -30,63 +30,17 @@
  * SOFTWARE.
  */
 
-#include "ofi_peer.h"
-#include "coll.h"
+#ifndef _OFI_PEER_H_
+#define _OFI_PEER_H_
 
-static struct fi_ops_fabric coll_fabric_ops = {
-	.size = sizeof(struct fi_ops_fabric),
-	.domain = fi_no_domain,
-	.passive_ep = fi_no_passive_ep,
-	.eq_open = coll_eq_open,
-	.wait_open = ofi_wait_fd_open,
-	.trywait = ofi_trywait,
-	.domain2 = ofi_peer_domain_open2,
+#include <ofi_util.h>
+
+struct peer_domain {
+	struct util_domain util_domain;
+	struct fid_domain *peer_domain;
 };
 
-static int coll_fabric_close(fid_t fid)
-{
-	struct util_fabric *fabric;
-	int ret;
+int ofi_peer_domain_open2(struct fid_fabric *fabric, struct fi_info *info,
+		      struct fid_domain **dom, uint64_t flags, void *context);
 
-	fabric = container_of(fid, struct util_fabric, fabric_fid.fid);
-
-	ret = ofi_fabric_close(fabric);
-	if (ret)
-		return ret;
-
-	free(fabric);
-	return 0;
-}
-
-static struct fi_ops coll_fabric_fi_ops = {
-	.size = sizeof(struct fi_ops),
-	.close = coll_fabric_close,
-	.bind = fi_no_bind,
-	.control = fi_no_control,
-	.ops_open = fi_no_ops_open,
-};
-
-int coll_fabric(struct fi_fabric_attr *attr, struct fid_fabric **fabric_fid,
-		void *context)
-{
-	struct util_fabric *fabric;
-	int ret;
-
-	fabric = calloc(1, sizeof(*fabric));
-	if (!fabric)
-		return -FI_ENOMEM;
-
-	ret = ofi_fabric_init(&coll_prov, &coll_fabric_attr, attr,
-			      fabric, context);
-	if (ret)
-		goto err;
-
-	*fabric_fid = &fabric->fabric_fid;
-	(*fabric_fid)->fid.ops = &coll_fabric_fi_ops;
-	(*fabric_fid)->ops = &coll_fabric_ops;
-	return 0;
-
-err:
-	free(fabric);
-	return ret;
-}
+#endif /* _OFI_PEER_H_ */

@@ -71,11 +71,6 @@ enum {
 	COLL_TX_SIZE = 16384,
 };
 
-struct coll_domain {
-	struct util_domain util_domain;
-	struct fid_domain *peer_domain;
-};
-
 struct coll_av {
 	struct util_av util_av;
 	struct fid_peer_av *peer_av;
@@ -106,7 +101,7 @@ struct coll_ep {
 struct coll_mr {
 	struct fid_mr mr_fid;
 	struct fid_mr *msg_mr;
-	struct coll_domain *domain;
+	struct peer_domain *domain;
 	enum fi_hmem_iface iface;
 	uint64_t device;
 	ofi_mutex_t amo_lock;
@@ -131,9 +126,6 @@ extern struct fi_info coll_info;
 
 int coll_fabric(struct fi_fabric_attr *attr, struct fid_fabric **fabric,
 		void *context);
-
-int coll_domain_open2(struct fid_fabric *fabric, struct fi_info *info,
-		      struct fid_domain **dom, uint64_t flags, void *context);
 
 int coll_cq_open(struct fid_domain *domain, struct fi_cq_attr *attr,
 		 struct fid_cq **cq_fid, void *context);

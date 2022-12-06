@@ -30,9 +30,11 @@
  * SOFTWARE.
  */
 
-#include "coll.h"
+#include "ofi_peer.h"
+/* for coll_av_open, coll_endpoint and coll_query_collective */
+#include "../../coll/src/coll.h"
 
-static struct fi_ops_domain coll_domain_ops = {
+static struct fi_ops_domain peer_domain_ops = {
 	.size = sizeof(struct fi_ops_domain),
 	.av_open = coll_av_open,
 	.cq_open = coll_cq_open,
@@ -47,12 +49,12 @@ static struct fi_ops_domain coll_domain_ops = {
 	.endpoint2 = fi_no_endpoint2,
 };
 
-static int coll_domain_close(fid_t fid)
+static int peer_domain_close(fid_t fid)
 {
-	struct coll_domain *domain;
+	struct peer_domain *domain;
 	int ret;
 
-	domain = container_of(fid, struct coll_domain, util_domain.domain_fid.fid);
+	domain = container_of(fid, struct peer_domain, util_domain.domain_fid.fid);
 
 	ret = ofi_domain_close(&domain->util_domain);
 	if (ret)
@@ -62,26 +64,26 @@ static int coll_domain_close(fid_t fid)
 	return 0;
 }
 
-static struct fi_ops coll_domain_fi_ops = {
+static struct fi_ops peer_domain_fi_ops = {
 	.size = sizeof(struct fi_ops),
-	.close = coll_domain_close,
+	.close = peer_domain_close,
 	.bind = fi_no_bind,
 	.control = fi_no_control,
 	.ops_open = fi_no_ops_open,
 };
 
-static struct fi_ops_mr coll_domain_mr_ops = {
+static struct fi_ops_mr peer_domain_mr_ops = {
 	.size = sizeof(struct fi_ops_mr),
 	.reg = fi_no_mr_reg,
 	.regv = fi_no_mr_regv,
 	.regattr = fi_no_mr_regattr,
 };
 
-int coll_domain_open2(struct fid_fabric *fabric, struct fi_info *info,
+int ofi_peer_domain_open2(struct fid_fabric *fabric, struct fi_info *info,
 		      struct fid_domain **domain_fid, uint64_t flags,
 		      void *context)
 {
-	struct coll_domain *domain;
+	struct peer_domain *domain;
 	struct fi_peer_domain_context *peer_context = context;
 	int ret;
 
@@ -109,9 +111,9 @@ int coll_domain_open2(struct fid_fabric *fabric, struct fi_info *info,
 		goto err;
 
 	*domain_fid = &domain->util_domain.domain_fid;
-	(*domain_fid)->fid.ops = &coll_domain_fi_ops;
-	(*domain_fid)->ops = &coll_domain_ops;
-	(*domain_fid)->mr = &coll_domain_mr_ops;
+	(*domain_fid)->fid.ops = &peer_domain_fi_ops;
+	(*domain_fid)->ops = &peer_domain_ops;
+	(*domain_fid)->mr = &peer_domain_mr_ops;
 	return 0;
 
 err:
