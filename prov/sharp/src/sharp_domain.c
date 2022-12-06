@@ -32,6 +32,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <mellanox/sharp.h>
 
 #include "sharp.h"
 
@@ -115,16 +116,21 @@ static struct fi_ops_domain sharp_domain_ops = {
 
 static int sharp_domain_close(fid_t fid)
 {
-	int ret;
+	int ret = 0;
 	struct sharp_domain *domain;
 
 	domain = container_of(fid, struct sharp_domain, util_domain.domain_fid.fid);
-	/// mapped to int sharp_coll_finalize(struct sharp_coll_context *context);
+
+	ret = sharp_coll_finalize(domain->sharp_context);
+	if (ret)
+		return ret;
+
 	ret = ofi_domain_close(&domain->util_domain);
 	if (ret)
 		return ret;
 
 	free(domain);
+
 	return 0;
 }
 
@@ -174,14 +180,9 @@ int sharp_domain2(struct fid_fabric *fabric, struct fi_info *info,
 	if (!domain)
 		return -FI_ENOMEM;
 
-	ret = ofi_domain_init(fabric, info, &domain->util_domain, context,
-			      OFI_LOCK_MUTEX);
-
-
-	if (ret) {
-		free(domain);
-		return ret;
-	}
+	ret = ofi_domain_init(fabric, info, &domain->util_domain, context, OFI_LOCK_MUTEX);
+	if (ret)
+		goto err_free_domain;
 
 	ofi_atomic_initialize32(&domain->ref, 0);
 	domain->util_domain.threading = FI_THREAD_UNSPEC;
@@ -196,10 +197,6 @@ int sharp_domain2(struct fid_fabric *fabric, struct fi_info *info,
 	fid_domain_init(domain_fid, &domain->util_domain, &sharp_domain_fi_ops,
 		&sharp_domain_ops, &sharp_domain_mr_ops);
 
-
-// XXX maped to 
-// int sharp_coll_init(struct sharp_coll_init_spec *sharp_coll_spec,
-//		    struct sharp_coll_context  **sharp_coll_context);
 #if 0
 struct sharp_coll_init_spec {
 	uint64_t	job_id;				/**< Job unique ID */
@@ -215,5 +212,15 @@ struct sharp_coll_init_spec {
 	int		reserved[4];			/**< Reserved */
 };
 #endif
+
+	struct sharp_coll_init_spec sharp_coll_spec = {0};
+	ret = sharp_coll_init(&sharp_coll_spec, (struct sharp_coll_context **)&domain->sharp_context);
+	if (ret)
+		goto err_free_domain;
+
 	return 0;
+
+err_free_domain:
+	free(domain);
+	return ret;
 }
