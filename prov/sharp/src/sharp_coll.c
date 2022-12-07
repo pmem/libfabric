@@ -728,6 +728,11 @@ ssize_t sharp_ep_barrier2(struct fid_ep *ep, fi_addr_t coll_addr, uint64_t flags
 	if (ret)
 		goto err1;
 #endif
+/*
+	struct sharp_ep *sharp_ep;
+	sharp_ep = container_of(ep, struct sharp_ep, util_ep.ep_fid);
+	fi_barrier2(sharp_ep->peer_ep, sharp_mc->oob_fid_mc, FI_PEER_TRANSFER, );
+*/
 	ret = sharp_sched_comp(barrier_op);
 	if (ret)
 		goto err1;
