@@ -380,17 +380,101 @@ static int rxm_getname(fid_t fid, void *addr, size_t *addrlen)
 	return fi_getname(&rxm_ep->msg_pep->fid, addr, addrlen);
 }
 
-static int rxm_join_coll(struct fid_ep *ep, const void *addr, uint64_t flags,
-		    struct fid_mc **mc, void *context)
+static int rxm_mc_close(struct fid *fid)
 {
+	struct rxm_mc *rxm_mc;
+
+	rxm_mc = container_of(fid, struct rxm_mc, mc_fid.fid);
+
+	ofi_atomic_dec32(&rxm_mc->av_set->ref);
+
+	if (rxm_mc->util_coll_mc_fid) {
+		assert(rxm_mc->state != RXM_MC_UTIL_STARTED);
+		fi_close(&rxm_mc->util_coll_mc_fid->fid);
+	}
+
+	if (rxm_mc->offload_coll_mc_fid) {
+		assert(rxm_mc->state != RXM_MC_OFF_STARTED);
+		fi_close(&rxm_mc->offload_coll_mc_fid->fid);
+	}
+
+	free(rxm_mc);
+
+	return FI_SUCCESS;
+}
+
+static struct fi_ops rxm_mc_fi_ops = {
+	.size = sizeof(struct fi_ops),
+	.close = rxm_mc_close,
+	.bind = fi_no_bind,
+	.control = fi_no_control,
+	.ops_open = fi_no_ops_open,
+};
+
+static struct rxm_mc *rxm_create_mc(struct util_av_set *av_set, 
+				    struct rxm_ep *rxm_ep, const void *addr,
+				    void *context)
+{
+	struct rxm_mc *rxm_mc;
+
+	rxm_mc = calloc(1, sizeof(*rxm_mc));
+	if (!rxm_mc)
+		return NULL;
+
+	rxm_mc->mc_fid.fid.fclass = FI_CLASS_MC;
+	rxm_mc->mc_fid.fid.context = context;
+	rxm_mc->mc_fid.fid.ops = &rxm_mc_fi_ops;
+	rxm_mc->mc_fid.fi_addr = (uintptr_t) rxm_mc;
+	rxm_mc->addr = addr;
+	ofi_spin_init(&rxm_mc->lock);
+	ofi_spin_lock(&rxm_mc->lock);
+	rxm_mc->state = RXM_MC_IDLE;
+	ofi_spin_unlock(&rxm_mc->lock);
+	rxm_mc->ep = rxm_ep;
+	ofi_atomic_inc32(&av_set->ref);
+
+	rxm_mc->av_set = av_set;
+
+	return rxm_mc;
+}
+
+static int rxm_join_coll(struct fid_ep *ep, const void *addr, uint64_t flags,
+			struct fid_mc **mc, void *context)
+{
+	const struct fi_collective_addr *c_addr;
+	const struct fid_av_set *set;
+	struct util_av_set *av_set;
+	struct rxm_mc *rxm_mc;
 	struct rxm_ep *rxm_ep;
+	int ret;
 
 	if (!(flags & FI_COLLECTIVE))
 		return -FI_ENOSYS;
 
+	c_addr = addr;
+	set = c_addr->set;
+	av_set = container_of(set, struct util_av_set, av_set_fid);
 	rxm_ep = container_of(ep, struct rxm_ep, util_ep.ep_fid);
 
-	return fi_join(rxm_ep->util_coll_ep, addr, flags, mc, context);
+	rxm_mc = rxm_create_mc(av_set, rxm_ep, addr, context);
+	if (!rxm_mc)
+		return -FI_ENOMEM;
+
+	rxm_mc->context = context;
+	ofi_spin_lock(&rxm_mc->lock);
+	rxm_mc->state = RXM_MC_UTIL_STARTED;
+	ofi_spin_unlock(&rxm_mc->lock);
+	ret = fi_join(rxm_ep->util_coll_ep, addr, flags,
+			&rxm_mc->util_coll_mc_fid, rxm_mc);
+	if (ret) {
+		ofi_spin_lock(&rxm_mc->lock);
+		rxm_mc->state = RXM_MC_ERROR;
+		ofi_spin_unlock(&rxm_mc->lock);
+		fi_close(&rxm_mc->mc_fid.fid);
+	} else {
+		*mc = &rxm_mc->mc_fid;
+	}
+	return ret;
 }
 
 static struct fi_ops_cm rxm_ops_cm = {
@@ -972,11 +1056,14 @@ struct fid_ep *get_coll_ep(struct rxm_ep *rxm_ep, uint64_t flags, int coll_op)
 
 static int rxm_ep_init_coll_req(struct rxm_ep *rxm_ep, int coll_op, uint64_t flags,
 				void *context, struct rxm_coll_buf **req,
-				struct fid_ep **coll_ep)
+				struct fid_ep **coll_ep, fi_addr_t *coll_addr)
 {
-        ofi_ep_lock_acquire(&rxm_ep->util_ep);
+	struct rxm_mc *rxm_mc;
+	struct util_coll_mc *coll_mc;
+
+	ofi_ep_lock_acquire(&rxm_ep->util_ep);
 	(*req) = rxm_get_coll_buf(rxm_ep);
-        ofi_ep_lock_release(&rxm_ep->util_ep);
+	ofi_ep_lock_release(&rxm_ep->util_ep);
 
 	if (!(*req))
 		return -FI_EAGAIN;
@@ -985,14 +1072,40 @@ static int rxm_ep_init_coll_req(struct rxm_ep *rxm_ep, int coll_op, uint64_t fla
 	(*req)->flags = flags;
 	(*req)->app_context = context;
 
-	if (flags & FI_PEER_TRANSFER)
+	rxm_mc = (struct rxm_mc*) ((uintptr_t) *coll_addr);
+	ofi_spin_lock(&rxm_mc->lock);
+	switch (rxm_mc->state)
+	{
+	case RXM_MC_ERROR:
+	case RXM_MC_IDLE:
+		return -FI_EFAULT;
+	case RXM_MC_UTIL_STARTED:
+		return -FI_EAGAIN;
+	case RXM_MC_OFF_STARTED:
+		if (!(flags & FI_PEER_TRANSFER)) 
+			return -FI_EINVAL;
+		coll_mc = container_of(rxm_mc->util_coll_mc_fid,
+				struct util_coll_mc, mc_fid);
+		*coll_addr = fi_mc_addr(&coll_mc->mc_fid);
 		(*coll_ep) = rxm_ep->util_coll_ep;
-	else if (rxm_ep->offload_coll_mask & BIT(coll_op))
-		(*coll_ep) = rxm_ep->offload_coll_ep;
-	else
+		break;
+    	case RXM_MC_READY:
+	default:
+		if ((flags & FI_PEER_TRANSFER) || !rxm_ep->offload_coll_ep
+		    || !(rxm_ep->offload_coll_mask & BIT(coll_op))) {
+		coll_mc = container_of(rxm_mc->util_coll_mc_fid,
+					struct util_coll_mc, mc_fid);
+		*coll_addr = fi_mc_addr(&coll_mc->mc_fid);
 		(*coll_ep) = rxm_ep->util_coll_ep;
-
-	return 0;
+		} else {
+			coll_mc = container_of(rxm_mc->offload_coll_mc_fid,
+						struct util_coll_mc, mc_fid);
+			*coll_addr = fi_mc_addr(&coll_mc->mc_fid);
+			(*coll_ep) = rxm_ep->offload_coll_ep;
+		}
+		break;
+	}
+	return FI_SUCCESS;
 }
 
 static inline void rxm_ep_free_coll_req(struct rxm_ep *rxm_ep,
@@ -1011,10 +1124,10 @@ ssize_t rxm_ep_barrier2(struct fid_ep *ep, fi_addr_t coll_addr,
 	struct rxm_coll_buf *req;
 	ssize_t ret;
 
-        rxm_ep = container_of(ep, struct rxm_ep, util_ep.ep_fid.fid);
+	rxm_ep = container_of(ep, struct rxm_ep, util_ep.ep_fid.fid);
 
 	ret = rxm_ep_init_coll_req(rxm_ep, FI_BARRIER, flags, context,
-				   &req, &coll_ep);
+				   &req, &coll_ep, &coll_addr);
 	if (ret)
 		return ret;
 
@@ -1042,10 +1155,10 @@ ssize_t rxm_ep_allreduce(struct fid_ep *ep, const void *buf, size_t count,
 	struct rxm_coll_buf *req;
 	ssize_t ret;
 
-        rxm_ep = container_of(ep, struct rxm_ep, util_ep.ep_fid.fid);
+	rxm_ep = container_of(ep, struct rxm_ep, util_ep.ep_fid.fid);
 
 	ret = rxm_ep_init_coll_req(rxm_ep, FI_ALLREDUCE, flags, context,
-				   &req, &coll_ep);
+				   &req, &coll_ep, &coll_addr);
 	if (ret)
 		return ret;
 
@@ -1069,10 +1182,10 @@ ssize_t rxm_ep_allgather(struct fid_ep *ep, const void *buf, size_t count,
 	struct rxm_coll_buf *req;
 	ssize_t ret;
 
-        rxm_ep = container_of(ep, struct rxm_ep, util_ep.ep_fid.fid);
+	rxm_ep = container_of(ep, struct rxm_ep, util_ep.ep_fid.fid);
 
 	ret = rxm_ep_init_coll_req(rxm_ep, FI_ALLGATHER, flags, context,
-				   &req, &coll_ep);
+				   &req, &coll_ep, &coll_addr);
 	if (ret)
 		return ret;
 
@@ -1097,10 +1210,10 @@ ssize_t rxm_ep_scatter(struct fid_ep *ep, const void *buf, size_t count,
 	struct rxm_coll_buf *req;
 	ssize_t ret;
 
-        rxm_ep = container_of(ep, struct rxm_ep, util_ep.ep_fid.fid);
+	rxm_ep = container_of(ep, struct rxm_ep, util_ep.ep_fid.fid);
 
 	ret = rxm_ep_init_coll_req(rxm_ep, FI_SCATTER, flags, context,
-				   &req, &coll_ep);
+				   &req, &coll_ep, &coll_addr);
 	if (ret)
 		return ret;
 
@@ -1124,10 +1237,10 @@ ssize_t rxm_ep_broadcast(struct fid_ep *ep, void *buf, size_t count,
 	struct rxm_coll_buf *req;
 	ssize_t ret;
 
-        rxm_ep = container_of(ep, struct rxm_ep, util_ep.ep_fid.fid);
+	rxm_ep = container_of(ep, struct rxm_ep, util_ep.ep_fid.fid);
 
 	ret = rxm_ep_init_coll_req(rxm_ep, FI_BROADCAST, flags, context,
-				   &req, &coll_ep);
+				   &req, &coll_ep, &coll_addr);
 	if (ret)
 		return ret;
 
