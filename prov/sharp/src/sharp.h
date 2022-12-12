@@ -143,7 +143,7 @@ struct sharp_mc {
 	uint16_t		seq;
 	ofi_atomic32_t		ref;
 
-	struct fid_mc 		*oob_fid_mc;
+	struct fid_mc 		*peer_mc_fid;
 	struct sharp_ep		*ep;
 	sharp_coll_comm_t 	*sharp_context;
 };
