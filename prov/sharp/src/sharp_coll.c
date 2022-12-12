@@ -68,9 +68,9 @@ static int sharp_mc_close(struct fid *fid)
 	struct sharp_mc *mc;
 
 	mc = container_of(fid, struct sharp_mc, mc_fid.fid);
-	if (mc->oob_fid_mc) {
-		fi_close(&(mc->oob_fid_mc->fid));
-		mc->oob_fid_mc = NULL;
+	if (mc->peer_mc_fid) {
+		fi_close(&(mc->peer_mc_fid->fid));
+		mc->peer_mc_fid = NULL;
 	}
 	// ofi_atomic_dec32(&mc->ep->ref); //XXX
 	free(mc);
@@ -83,7 +83,7 @@ int	sharp_mc_bind(struct fid *fid, struct fid *bfid, uint64_t flags)
 	struct fid_mc *fid_mc;
 	mc = container_of(fid, struct sharp_mc, mc_fid.fid);
 	fid_mc = container_of(bfid, struct fid_mc, fid);
-	mc->oob_fid_mc = fid_mc;
+	mc->peer_mc_fid = fid_mc;
 	return 0;
 }
 
@@ -106,7 +106,7 @@ int sharp_join_collective(struct fid_ep *fid, const void *addr, uint64_t flags,
 
 	*mc_fid = &mc->mc_fid;
 	(*mc_fid)->fid.ops = &sharp_mc_fid_ops;
-	mc->oob_fid_mc = context;
+	mc->peer_mc_fid = context;
 
 	/* XXX Dummy implementation*/	
 	struct fi_eq_entry entry;
