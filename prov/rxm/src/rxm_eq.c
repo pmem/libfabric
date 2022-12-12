@@ -64,6 +64,55 @@ static struct fi_ops rxm_eq_fi_ops = {
 	.ops_open = fi_no_ops_open,
 };
 
+ssize_t rxm_eq_write(struct fid_eq *eq_fid, uint32_t event,
+		     const void *buf, size_t len, uint64_t flags)
+{
+	struct fi_eq_entry entry;
+	const struct fi_eq_entry *in_entry = buf;
+	struct rxm_mc *mc;
+
+	if (event != FI_JOIN_COMPLETE) {
+		return ofi_eq_write(eq_fid, event, buf, len, flags);
+	}
+
+	mc = in_entry->context;
+	if (in_entry->fid == &mc->util_coll_mc_fid->fid) {
+		/* cleanup after partially executed fi_join() */
+		if (mc->util_coll_join_completed == -1) {
+			mc->util_coll_join_completed = 1;
+			fi_close(&mc->mc_fid.fid);
+		} else {
+			assert (mc->util_coll_join_completed == 0);
+			mc->util_coll_join_completed = 1;
+		}
+	} else if (in_entry->fid == &mc->offload_coll_mc_fid->fid) {
+		assert (mc->offload_coll_join_completed == 0);
+		mc->offload_coll_join_completed = 1;
+	} else {
+		assert(0); /* we do not expect any other fid */
+	}
+
+	if (mc->util_coll_join_completed == 1 &&
+	    (mc->offload_coll_join_completed == 1 ||
+	     !mc->offload_coll_mc_fid)) {
+		memset(&entry, 0, sizeof(entry));
+		entry.context = mc->context;
+		entry.fid = &mc->mc_fid.fid;
+		return ofi_eq_write(eq_fid, event, &entry, len, flags);
+	}
+
+	return len;
+};
+
+static struct fi_ops_eq rxm_eq_ops = {
+	.size = sizeof(struct fi_ops_eq),
+	.read = ofi_eq_read,
+	.readerr = ofi_eq_readerr,
+	.sread = ofi_eq_sread,
+	.write = rxm_eq_write,
+	.strerror = ofi_eq_strerror,
+};
+
 int rxm_eq_open(struct fid_fabric *fabric_fid, struct fi_eq_attr *attr,
 		struct fid_eq **eq_fid, void *context)
 {
@@ -98,6 +147,7 @@ int rxm_eq_open(struct fid_fabric *fabric_fid, struct fi_eq_attr *attr,
 	}
 
 	rxm_eq->util_eq.eq_fid.fid.ops = &rxm_eq_fi_ops;
+	rxm_eq->util_eq.eq_fid.ops = &rxm_eq_ops;
 	*eq_fid = &rxm_eq->util_eq.eq_fid;
 	return 0;
 
