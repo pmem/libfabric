@@ -138,6 +138,7 @@ enum {
 	FI_MR_COMPLETE,
 	FI_AV_COMPLETE,
 	FI_JOIN_COMPLETE,
+	FI_JOIN_FAILED,
 };
 
 struct fi_eq_entry {
