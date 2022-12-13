@@ -74,7 +74,9 @@ struct fi_provider sharp_prov = {
 	.cleanup = sharp_fini
 };
 
-/// @brief XXX to be moved to sharp_attr.c
+/*
+XXX to be moved to sharp_attr.c
+*/
 struct util_prov sharp_util_prov = {
 	.prov = &sharp_prov,
 	.info = &sharp_info,
