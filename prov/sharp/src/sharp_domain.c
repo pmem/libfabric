@@ -35,22 +35,21 @@
 
 #include "sharp.h"
 
-#include "../../coll/src/coll.h" //for coll_av_open
+#include "../../coll/src/coll.h" /* for coll_av_open */
 
 struct sharp_mr {
 	struct fid_mr mr_fid;
-	void *mr_handle; //obtained from sharp_coll_reg_mr
-	// alternatively mr_fid.mem_desc stores result of sharp_coll_reg_mr
+	void *mr_handle; /* obtained from sharp_coll_reg_mr */
 	struct sharp_domain *domain;
 };
 
 static int sharp_mr_close(fid_t fid)
 {
 #if 0
+/* XXX to be replaced with SHARP implementation */
 	struct fid_mr mr_fid;
 	struct sharp_mr *sharp_mr = container_of(fid, struct sharp_mr, mr_fid.fid);
 #endif
-// XXX
 	return 0;
 }
 static struct fi_ops sharp_mr_fi_ops = {
@@ -77,8 +76,10 @@ static int sharp_mr_reg(struct fid *fid, const void *buf, size_t len,
 		return -FI_ENOMEM;
 
 	void *sharp_coll_mr = NULL;
-	// maped to sharp_coll_reg_mr
-	// Only one outstanding registration supported. no registration cache.
+	/*
+	XXX to be maped to sharp_coll_reg_mr
+	Only one outstanding registration supported. no registration cache.
+	*/
 
 	sharp_mr->mr_fid.fid.fclass = FI_CLASS_MR;
 	sharp_mr->mr_fid.fid.context = context;
@@ -87,7 +88,9 @@ static int sharp_mr_reg(struct fid *fid, const void *buf, size_t len,
 	sharp_mr->mr_fid.key = FI_KEY_NOTAVAIL;
 	*mr = &sharp_mr->mr_fid;
 
-	// XXX do we need to track mrs inside domain
+	/*
+	XXX do we need to track mrs inside domain
+	*/
 	return 0;
 }
 
@@ -115,17 +118,23 @@ static struct fi_ops_domain sharp_domain_ops = {
 
 static int sharp_domain_close(fid_t fid)
 {
-	int ret;
 	struct sharp_domain *domain;
+	const struct fi_provider *prov;
+	int ret;
 
-	domain = container_of(fid, struct sharp_domain, util_domain.domain_fid.fid);
-	/// mapped to int sharp_coll_finalize(struct sharp_coll_context *context);
+	domain = container_of(fid, struct sharp_domain,
+				util_domain.domain_fid.fid);
+	prov = domain->util_domain.fabric->prov;
+	/*
+	XXX to be mapped to:
+	int sharp_coll_finalize(struct sharp_coll_context *context);
+	*/
 	ret = ofi_domain_close(&domain->util_domain);
-	if (ret)
-		return ret;
 
 	free(domain);
-	return 0;
+	if (ret)
+		FI_WARN(prov, FI_LOG_DOMAIN, "Unable to close domain\n");
+	return ret;
 }
 
 static struct fi_ops sharp_domain_fi_ops = {
@@ -187,19 +196,23 @@ int sharp_domain2(struct fid_fabric *fabric, struct fi_info *info,
 	domain->util_domain.threading = FI_THREAD_UNSPEC;
 
 #if 0
-	// XXX
+	/*
+	XXX
 	*domain_fid = &domain->util_domain.domain_fid;
 	(*domain_fid)->fid.ops = &sharp_domain_fi_ops;
 	(*domain_fid)->ops = &sharp_domain_ops;
 	(*domain_fid)->mr = &sharp_domain_mr_ops;
+	*/
 #endif
 	fid_domain_init(domain_fid, &domain->util_domain, &sharp_domain_fi_ops,
 		&sharp_domain_ops, &sharp_domain_mr_ops);
 
 
-// XXX maped to 
-// int sharp_coll_init(struct sharp_coll_init_spec *sharp_coll_spec,
-//		    struct sharp_coll_context  **sharp_coll_context);
+/*
+XXX maped to 
+int sharp_coll_init(struct sharp_coll_init_spec *sharp_coll_spec,
+		    struct sharp_coll_context  **sharp_coll_context);
+*/
 #if 0
 struct sharp_coll_init_spec {
 	uint64_t	job_id;				/**< Job unique ID */

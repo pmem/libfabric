@@ -31,7 +31,7 @@
  */
 
 #include "sharp.h"
-#include "ofi_coll.h" //for coll_cq_init
+#include "ofi_coll.h" /* for coll_cq_init */
 
 
 static int sharp_cq_close(struct fid *fid)

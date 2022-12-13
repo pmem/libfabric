@@ -46,9 +46,9 @@ int sharp_query_collective(struct fid_domain *domain,
 
 	switch (coll) {
 	case FI_BARRIER:
-		return FI_SUCCESS; //XXX to be integrated w/ sharp_query
+		return FI_SUCCESS; /* XXX to be integrated w/ sharp_query */
 	case FI_ALLREDUCE:
-		return FI_SUCCESS; //XXX to be integrated w/ sharp_query
+		return FI_SUCCESS; /* XXX to be integrated w/ sharp_query */
 	case FI_ALLGATHER:
 	case FI_SCATTER:
 	case FI_BROADCAST:
