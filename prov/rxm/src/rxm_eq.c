@@ -75,7 +75,12 @@ ssize_t rxm_eq_write(struct fid_eq *eq_fid, uint32_t event,
 		return ofi_eq_write(eq_fid, event, buf, len, flags);
 	}
 
-	mc = in_entry->context;
+	if (flags & FI_PEER) {
+		mc = container_of(in_entry->context, struct rxm_mc, mc_fid);
+	} else {
+		mc = in_entry->context;
+	}
+
 	if (in_entry->fid == &mc->util_coll_mc_fid->fid) {
 		/* cleanup after partially executed fi_join() */
 		if (mc->util_coll_join_completed == -1) {

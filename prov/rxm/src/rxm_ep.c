@@ -440,6 +440,9 @@ static int rxm_join_coll(struct fid_ep *ep, const void *addr, uint64_t flags,
 	struct rxm_mc *rxm_mc;
 	struct rxm_ep *rxm_ep;
 	int ret;
+	struct fi_peer_mc_context peer_context = {
+		.size = sizeof(struct fi_peer_mc_context),
+	};
 
 	if (!(flags & FI_COLLECTIVE))
 		return -FI_ENOSYS;
@@ -451,15 +454,16 @@ static int rxm_join_coll(struct fid_ep *ep, const void *addr, uint64_t flags,
 	rxm_mc = rxm_create_mc(av_set, context);
 	if (!rxm_mc)
 		return -FI_ENOMEM;
-	rxm_mc->context = context;
+
+	peer_context.mc_fid = &rxm_mc->mc_fid;
 	rxm_ep = container_of(ep, struct rxm_ep, util_ep.ep_fid);
-	ret = fi_join(rxm_ep->util_coll_ep, addr, flags,
-			&rxm_mc->util_coll_mc_fid, rxm_mc);
+	ret = fi_join(rxm_ep->util_coll_ep, addr, flags | FI_PEER,
+			&rxm_mc->util_coll_mc_fid, &peer_context);
 	if (ret) {
 		fi_close(&rxm_mc->mc_fid.fid);
 	} else if (rxm_ep->offload_coll_ep) {
-		ret = fi_join(rxm_ep->offload_coll_ep, addr, flags,
-			&rxm_mc->offload_coll_mc_fid, rxm_mc);
+		ret = fi_join(rxm_ep->offload_coll_ep, addr, flags | FI_PEER,
+			&rxm_mc->offload_coll_mc_fid, &peer_context);
 		if (ret) {
 			/*mark util_coll_mc to be removed as soon as
 			  util_coll_ep:fi_join() complets */
