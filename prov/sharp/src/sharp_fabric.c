@@ -68,7 +68,9 @@ static struct fi_ops sharp_fabric_fi_ops = {
 	.ops_open = fi_no_ops_open,
 };
 
-/// XXX to be added to fabric.h later
+/*
+XXX to be added to fabric.h later
+*/
 static inline void 
 fid_fabric_init(struct fid_fabric **fabric_fid,
 		struct util_fabric *util_fabric, struct fi_ops *fid_ops,
@@ -95,7 +97,8 @@ int sharp_fabric(struct fi_fabric_attr *attr, struct fid_fabric **fabric_fid,
 		goto err;
 
 #if 0
-	*fabric_fid = &fabric->util_fabric.fabric_fid; ///XXX to be removed later
+	/* XXX to be removed later */
+	*fabric_fid = &fabric->util_fabric.fabric_fid; 
 	(*fabric_fid)->fid.ops = &sharp_fabric_fi_ops;
 	(*fabric_fid)->ops = &sharp_fabric_ops;
 #endif

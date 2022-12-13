@@ -39,15 +39,3 @@
 #include "ofi_atom.h"
 #include "ofi_mr.h"
 #include "sharp.h"
-#if 0
-/// @brief to be moved to sharp_coll.c XXX
-/// @param util_ep 
-void sharp_ep_progress(struct util_ep *util_ep)
-{
-#if 0
-	struct sharp_ep *ep;
-
-	ep = container_of(util_ep, struct sharp_ep, util_ep);
-#endif
-}
-#endif
