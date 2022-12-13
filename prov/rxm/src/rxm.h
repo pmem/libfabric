@@ -1001,4 +1001,14 @@ rxm_multi_recv_entry_get(struct rxm_ep *rxm_ep, const struct iovec *iov,
 		   void **desc, size_t count, fi_addr_t src_addr,
 		   uint64_t tag, uint64_t ignore, void *context,
 		   uint64_t flags);
+
+struct rxm_mc {
+	struct fid_mc		mc_fid;
+	void 			*context;
+	struct util_av_set	*av_set;
+	struct fid_mc		*util_coll_mc_fid;
+	int			util_coll_join_completed;
+	struct fid_mc		*offload_coll_mc_fid;
+	int			offload_coll_join_completed;
+};
 #endif

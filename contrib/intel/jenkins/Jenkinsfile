@@ -3,11 +3,35 @@ properties([disableConcurrentBuilds(abortPrevious: true)])
 def DO_RUN=1
 def TARGET="main"
 def SCRIPT_LOCATION="py_scripts/contrib/intel/jenkins"
+def RELEASE=0
 def check_target() {
   echo "CHANGE_TARGET = ${env.CHANGE_TARGET}"
   if (changeRequest()) {
     TARGET = env.CHANGE_TARGET
   }
+}
+
+def release() {
+  def file = "${env.WORKSPACE}/commit_id"
+  if (!fileExists(file)) {
+    echo "CI Run has not rebased with ofiwg/libfabric. Please Rebase."
+    return 1
+  }
+
+  def changes = readFile file
+  def changeStrings = new ArrayList<String>()
+
+  for (line in changes.readLines()) {
+    changeStrings.add(line)
+  }
+
+  if ((changeStrings.toArray().any { it =~ /(Makefile\.am)\b/ }) ||
+      (changeStrings.toArray().any { it =~ /(configure\.ac)\b/ })) {
+        echo "This is probably a release"
+        return 1
+  }
+
+  return 0
 }
 
 def skip() {
@@ -24,7 +48,6 @@ def skip() {
     changeStrings.add(line)
   }
 
-  echo "${changeStrings.toArray()}"
   if (changeStrings.toArray().every { it =~ /(?:fabtests\/pytests|man|prov\/efa|prov\/opx).*$/ }) {
     echo "DONT RUN!"
     return 0
@@ -64,10 +87,12 @@ pipeline {
             mkdir ${env.WORKSPACE}/py_scripts
             git clone ${env.UPSTREAM} ${env.WORKSPACE}/py_scripts
             ${env.SKIP_PATH}/skip.sh ${env.WORKSPACE} ${TARGET}
+            ${env.SKIP_PATH}/release.sh ${env.WORKSPACE} ${TARGET}
           """
         }
         script {
           DO_RUN=skip()
+          RELEASE=release()
         }
       }
     }
@@ -84,7 +109,11 @@ pipeline {
                 echo "Copy build dirs completed."
                 echo "-----------------------------------------------------"
                 echo "Copy log dirs."
-                python3.7 ${env.WORKSPACE}/${SCRIPT_LOCATION}/build.py --build_item=logdir
+                if [[ $RELEASE -eq 1 ]]; then
+                  python3.7 ${env.WORKSPACE}/${SCRIPT_LOCATION}/build.py --build_item=logdir --release
+                else
+                  python3.7 ${env.WORKSPACE}/${SCRIPT_LOCATION}/build.py --build_item=logdir
+                fi
                 echo "Copy log dirs completed."
                 echo "-----------------------------------------------------"
                 echo "Building libfabric reg."
@@ -655,7 +684,24 @@ pipeline {
           sh """
             env
             (
-              python3.7 ${env.WORKSPACE}/${SCRIPT_LOCATION}/summary.py --summary_item=all
+              if [[ $RELEASE -eq 1 ]]; then
+                python3.7 ${env.WORKSPACE}/${SCRIPT_LOCATION}/summary.py --summary_item=all --release
+              else
+                python3.7 ${env.WORKSPACE}/${SCRIPT_LOCATION}/summary.py --summary_item=all
+              fi
+              echo "------------"
+              if [[ ${RELEASE} -eq 1 ]]; then
+                mkdir -p ${env.WORKSPACE}/internal
+                rm -rf ${env.WORKSPACE}/internal/*
+                git clone https://${env.PAT}@github.com/${env.INTERNAL} ${env.WORKSPACE}/internal
+                cd ${env.WORKSPACE}/internal
+                mkdir -p ${env.WORKSPACE}/internal/summaries
+                cp ${env.WORKSPACE}/summary_*.log ${env.WORKSPACE}/internal/summaries/
+                git add ${env.WORKSPACE}/internal/summaries/
+                git commit -am \"add ${env.JOB_NAME}'s summary\"
+                git pull -r origin master
+                git push origin master
+              fi
             )
           """
         }
@@ -681,6 +727,21 @@ pipeline {
     always {
       withEnv(['PATH+EXTRA=/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/bin:$PYTHONPATH']) {
         sh "python3.7 ${env.WORKSPACE}/${SCRIPT_LOCATION}/summary.py --summary_item=all"
+      }
+    }
+    success {
+      node ('daos') {
+        withEnv(['PATH+EXTRA=/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/bin:$PYTHONPATH']) {
+          sh "python3.7 ${env.WORKSPACE}/${SCRIPT_LOCATION}/summary.py -v --summary_item=daos"
+          dir ("${env.DAOS_CLUSTER_HOME}/avocado") {
+            deleteDir()
+          }
+        }
+      }
+      withEnv(['PATH+EXTRA=/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/bin:$PYTHONPATH']) {
+        dir("${env.WORKSPACE}") {
+          sh "python3.7 ${env.WORKSPACE}/${SCRIPT_LOCATION}/summary.py -v --summary_item=all"
+        }
       }
     }
     cleanup {
@@ -720,19 +781,6 @@ pipeline {
         dir("${env.WORKSPACE}@tmp") {
           deleteDir()
         }
-      }
-    }
-    success {
-      node ('daos') {
-        withEnv(['PATH+EXTRA=/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/bin:$PYTHONPATH']) {
-          sh "python3.7 ${env.WORKSPACE}/${SCRIPT_LOCATION}/summary.py -v --summary_item=daos"
-          dir ("${env.DAOS_CLUSTER_HOME}/avocado") {
-            deleteDir()
-          }
-        }
-      }
-      withEnv(['PATH+EXTRA=/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/bin:$PYTHONPATH']) {
-        sh "python3.7 ${env.WORKSPACE}/${SCRIPT_LOCATION}/summary.py -v --summary_item=all"
       }
     }
   }
