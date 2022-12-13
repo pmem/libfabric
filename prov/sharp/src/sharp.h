@@ -46,24 +46,16 @@
 #include <rdma/fi_endpoint.h>
 #include <rdma/fi_eq.h>
 #include <rdma/fi_errno.h>
-//#include <rdma/fi_rma.h>
-//#include <rdma/fi_tagged.h>
-//#include <rdma/fi_trigger.h>
 #include <rdma/providers/fi_prov.h>
 #include <rdma/fi_ext.h>
 
 #include <ofi.h>
 #include <ofi_enosys.h>
 #include <ofi_sharp.h>
-//#include <ofi_rbuf.h>
 #include <ofi_list.h>
 #include <ofi_signal.h>
-//#include <ofi_epoll.h>
 #include <ofi_util.h>
-//#include <ofi_atomic.h>
-//#include <ofi_iov.h>
 #include <ofi_mr.h>
-//#include <ofi_lock.h>
 
 #ifndef _SHARP_H_
 #define _SHARP_H_
@@ -84,7 +76,9 @@ struct sharp_env {
 
 extern struct sharp_env sharp_env;
 
-/// XXX temporary solution
+/*
+XXX temporary solution
+*/
 #ifdef sharp_coll_context
 #define sharp_coll_context_t struct sharp_coll_context
 #else
@@ -95,7 +89,7 @@ struct sharp_domain {
 	struct util_domain	util_domain;
 	struct fid_domain *peer_domain;
 	sharp_coll_context_t *sharp_context;
-	ofi_atomic32_t	ref; // mr count
+	ofi_atomic32_t	ref; /* mr count XXX - to be handled in mr create and del */
 	ofi_spin_t		lock;
 };
 
@@ -119,17 +113,21 @@ struct sharp_ep {
 	struct fid_ep	*peer_ep;
 	struct fi_info 	*peer_info;
 
-	ofi_atomic32_t	ref; // mc count
+	ofi_atomic32_t	ref; /* mc count XXX to be added to mc handling*/
 	ofi_spin_t	lock;
 };
 
-// XXX to be reused from coll provider
+/*
+XXX to be reused from coll provider
+*/
 struct sharp_av {
 	struct util_av util_av;
 	struct fid_peer_av *peer_av;
 };
 
-/// XXX temporary solution
+/*
+XXX temporary solution
+*/
 #ifdef sharp_coll_comm
 #define sharp_coll_comm_t struct sharp_coll_comm
 #else
