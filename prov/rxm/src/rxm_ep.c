@@ -455,6 +455,9 @@ static int rxm_join_coll(struct fid_ep *ep, const void *addr, uint64_t flags,
 	struct util_av_set *av_set;
 	struct rxm_mc *rxm_mc;
 	struct rxm_ep *rxm_ep;
+	struct fi_peer_mc_context peer_context = {
+		.size = sizeof(struct fi_peer_mc_context),
+	};
 	int ret;
 
 	if (!(flags & FI_COLLECTIVE))
@@ -475,8 +478,10 @@ static int rxm_join_coll(struct fid_ep *ep, const void *addr, uint64_t flags,
 	ofi_spin_lock(&rxm_mc->state_lock);
 	rxm_mc->state = RXM_MC_UTIL_STARTED;
 	ofi_spin_unlock(&rxm_mc->state_lock);
+	peer_context.mc_fid = &rxm_mc->mc_fid;
 	ret = fi_join_collective(rxm_ep->util_coll_ep, c_addr->coll_addr,
-			c_addr->set, flags, &rxm_mc->util_coll_mc_fid, rxm_mc);
+		c_addr->set, flags | FI_PEER, &rxm_mc->util_coll_mc_fid,
+		&peer_context);
 	if (ret)
 		goto error;
 
