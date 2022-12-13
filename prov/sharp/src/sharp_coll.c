@@ -68,29 +68,18 @@ static int sharp_mc_close(struct fid *fid)
 	struct sharp_mc *mc;
 
 	mc = container_of(fid, struct sharp_mc, mc_fid.fid);
-	if (mc->peer_mc_fid) {
-		fi_close(&(mc->peer_mc_fid->fid));
-		mc->peer_mc_fid = NULL;
-	}
-	// ofi_atomic_dec32(&mc->ep->ref); //XXX
+#if 0
+	/* XXX to be enabled with real implementation of fi_join */
+	ofi_atomic_dec32(&mc->av_set->ref); 
+#endif
 	free(mc);
-	return 0;
-}
-
-int	sharp_mc_bind(struct fid *fid, struct fid *bfid, uint64_t flags)
-{
-	struct sharp_mc *mc;
-	struct fid_mc *fid_mc;
-	mc = container_of(fid, struct sharp_mc, mc_fid.fid);
-	fid_mc = container_of(bfid, struct fid_mc, fid);
-	mc->peer_mc_fid = fid_mc;
 	return 0;
 }
 
 static struct fi_ops sharp_mc_fid_ops = {
 	.size = sizeof(struct fi_ops),
 	.close = sharp_mc_close,
-	.bind = sharp_mc_bind,
+	.bind = fi_no_bind,
 	.control = fi_no_control,
 	.ops_open = fi_no_ops_open,
 };
@@ -99,19 +88,31 @@ static struct fi_ops sharp_mc_fid_ops = {
 int sharp_join_collective(struct fid_ep *fid, const void *addr, uint64_t flags,
 		    struct fid_mc **mc_fid, void *context)
 {
+	struct fi_peer_mc_context *peer_context;
 	struct sharp_mc *mc;
+
+	if (!(flags & FI_COLLECTIVE))
+		return -FI_ENOSYS;
+
+	if ((flags & FI_PEER)) {
+		peer_context = context;
+		context = peer_context->mc_fid;
+	}
+
 	mc = calloc(1, sizeof(*mc));
 	if (!mc)
 		return -FI_ENOMEM;
 
 	*mc_fid = &mc->mc_fid;
 	(*mc_fid)->fid.ops = &sharp_mc_fid_ops;
-	mc->peer_mc_fid = context;
+	if ((flags & FI_PEER))
+		mc->peer_mc = context;
 
-	/* XXX Dummy implementation*/	
+	/* XXX Dummy implementation */
 	struct fi_eq_entry entry;
 	struct sharp_ep *ep;
 	struct sharp_eq *eq;
+
 	int ret;
 
 	ep = container_of(fid, struct sharp_ep, util_ep.ep_fid);
@@ -121,8 +122,11 @@ int sharp_join_collective(struct fid_ep *fid, const void *addr, uint64_t flags,
 	entry.fid = &((*mc_fid)->fid);
 	entry.context = context;
 
+	flags = FI_COLLECTIVE;
+	if (mc->peer_mc)
+		flags |= FI_PEER;
 	ret = fi_eq_write(eq->peer_eq, FI_JOIN_COMPLETE, &entry,
-			sizeof(struct fi_eq_entry), FI_COLLECTIVE);
+			sizeof(struct fi_eq_entry), flags);
 	if (ret <= 0) {
 		FI_WARN(ep->util_ep.domain->fabric->prov, FI_LOG_EQ,
 			"join collective - fi_eq_write() failed\n");
@@ -134,6 +138,8 @@ int sharp_join_collective(struct fid_ep *fid, const void *addr, uint64_t flags,
 ssize_t sharp_ep_barrier2(struct fid_ep *fid, fi_addr_t coll_addr, 
 				uint64_t flags, void *context)
 {
+
+	/* XXX Dummy implementation */
 
 	struct sharp_ep *ep;
 	struct sharp_cq *cq;
@@ -160,6 +166,8 @@ ssize_t sharp_ep_allreduce(struct fid_ep *fid, const void *buf, size_t count,
 			  fi_addr_t coll_addr, enum fi_datatype datatype,
 			  enum fi_op op, uint64_t flags, void *context)
 {
+
+	/* XXX Dummy implementation */
 
 	memcpy(result,buf,count*ofi_datatype_size(datatype));
 	struct sharp_ep *ep;
