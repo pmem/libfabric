@@ -67,7 +67,7 @@ static struct fi_ops_cm sharp_ep_cm_ops = {
 	.setname = fi_no_setname,
 	.getname = sharp_getname,
 	.getpeer = fi_no_getpeer,
-	.connect = fi_no_connect, //XXX
+	.connect = fi_no_connect, /* XXX */
 	.listen = fi_no_listen,
 	.accept = fi_no_accept,
 	.reject = fi_no_reject,
@@ -137,7 +137,7 @@ static struct fi_ops_collective sharp_ep_collective_ops = {
 };
 static struct fi_ops_ep sharp_ep_ops = {
 	.size = sizeof(struct fi_ops_ep),
-	.cancel = fi_no_cancel, //XXX
+	.cancel = fi_no_cancel, /* XXX */
 	.getopt = fi_no_getopt,
 	.setopt = fi_no_setopt,
 	.tx_ctx = fi_no_tx_ctx,
