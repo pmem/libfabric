@@ -123,7 +123,7 @@ static int rxm_fabric_init_offload_coll(struct rxm_fabric *fabric)
 {
 	/*
 	 * TODO:
-	 * silimar to rxm_fabric_init_util_coll, except that the offload
+	 * similar to rxm_fabric_init_util_coll, except that the offload
 	 * provider is discovered by feature instead of name.
 	 */
 	struct fi_info *hints, *offload_coll_info;

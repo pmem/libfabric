@@ -838,7 +838,7 @@ void fi_ini(void)
 	fi_param_get_bool(NULL, "av_remove_cleanup", &ofi_av_remove_cleanup);
 
 	fi_param_define(NULL, "offload_coll_provider", FI_PARAM_STRING,
-			"The name of colective offload provider (default: empty - no provider)");
+			"The name of a colective offload provider (default: empty - no provider)");
 
 
 	ofi_load_dl_prov();
