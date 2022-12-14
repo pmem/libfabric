@@ -193,4 +193,10 @@ ssize_t sharp_ep_allreduce(struct fid_ep *ep, const void *buf, size_t count,
 			  fi_addr_t coll_addr, enum fi_datatype datatype,
 			  enum fi_op op, uint64_t flags, void *context);
 
+ssize_t sharp_peer_xfer_complete(struct fid_ep *ep,
+				struct fi_cq_tagged_entry *cqe,
+				fi_addr_t src_addr);
+
+ssize_t sharp_peer_xfer_error(struct fid_ep *ep, struct fi_cq_err_entry *cqerr);
+
 #endif
