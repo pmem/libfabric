@@ -169,6 +169,12 @@ void sharp_ep_progress(struct util_ep *util_ep)
 	;
 }
 
+static struct fi_ops_transfer_peer sharp_ep_peer_xfer_ops = {
+	.size = sizeof(struct fi_ops_transfer_peer),
+	.complete = sharp_peer_xfer_complete,
+	.comperr = sharp_peer_xfer_error,
+};
+
 int sharp_endpoint(struct fid_domain *domain, struct fi_info *info,
 		  struct fid_ep **ep_fid, void *context)
 {
@@ -187,6 +193,8 @@ int sharp_endpoint(struct fid_domain *domain, struct fi_info *info,
 			"Invalid peer transfer context\n");
 		return -EINVAL;
 	}
+
+	peer_context->peer_ops = &sharp_ep_peer_xfer_ops;
 
 	ep = calloc(1, sizeof(*ep));
 	if (!ep)
