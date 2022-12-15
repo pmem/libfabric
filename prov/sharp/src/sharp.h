@@ -199,4 +199,50 @@ ssize_t sharp_peer_xfer_complete(struct fid_ep *ep,
 
 ssize_t sharp_peer_xfer_error(struct fid_ep *ep, struct fi_cq_err_entry *cqerr);
 
+
+int sharp_oob_bcast(void* context, void* buffer, int len, int root);
+
+int sharp_oob_barrier(void* context);
+
+int sharp_oob_gather(void * context, int root, void *sbuf, void *rbuf, int len);
+
+/*
+int sharp_coll_init(struct sharp_coll_init_spec *sharp_coll_spec,
+		    struct sharp_coll_context  **sharp_coll_context);
+*/
+ssize_t sharp_do_sharp_coll_init(struct sharp_domain *domain);
+
+/*
+int sharp_coll_finalize(struct sharp_coll_context *context);
+*/
+size_t sharp_do_sharp_coll_finalize(struct sharp_domain *domain);
+
+/*
+int sharp_coll_comm_init(struct sharp_coll_context *context,
+			 struct sharp_coll_comm_init_spec *spec,
+			 struct sharp_coll_comm **sharp_coll_comm);
+*/
+int sharp_do_coll_comm_init(struct sharp_mc *mc);
+
+/* 
+int sharp_coll_comm_destroy(struct sharp_coll_comm *comm);
+*/
+size_t sharp_do_coll_comm_destroy(struct sharp_mc *mc);
+
+/*
+int sharp_coll_do_barrier_nb(struct sharp_coll_comm *comm, void **handle);
+*/
+size_t sharp_do_coll_do_barrier(struct sharp_mc *mc, uint64_t flags,
+				void *context, void **handle);
+
+/* 
+int sharp_coll_do_allreduce_nb(struct sharp_coll_comm *comm,
+				struct sharp_coll_reduce_spec *spec,
+				void **handle);
+*/
+int sharp_do_coll_do_allreduce(struct sharp_mc *mc, const void *buf, 
+				size_t count, void *desc, void *result, 
+				void *result_desc, enum fi_datatype datatype,
+				enum fi_op op, uint64_t flags, void *context,
+				void **handle);
 #endif
