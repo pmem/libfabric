@@ -1,0 +1,28 @@
+1 sharp_domain2 with sharp_coll API
+-- oob functions definition
+-- sharp_coll_init_spec allocation and definition
+-- sharp_coll_init (MOCK) allocate sharp_coll_context
+
+2 sharp_domain_close() with sharp_coll API
+-- sharp_coll_fini (MOCK) deallocate sharp_coll_context
+
+3 make with/without mocks
+3a test sharp_domain2 w/o mocks
+
+4 sharp_query_collective with sharp_coll API
+- sharp_coll_caps_query call
+
+-----
+
+5 sharp_coll_coom_init (MOCK) with sharp_oob_barrier() (THREAD?)
+- threaded
+- oob
+- xref_completion
+
+6 sharp_barrier
+- progress
+
+7 sharp_coll_do_allreduce_nb
+- sharp_coll_do_mr()
+...
+...
