@@ -1,5 +1,7 @@
 if HAVE_SHARP
 _sharp_files = \
+	prov/sharp/src/mocks/api/sharp.h	\
+	prov/sharp/src/mocks/api/sharp_mocks.c	\
 	include/ofi_sharp.h			\
 	prov/sharp/src/sharp.h			\
 	prov/sharp/src/sharp_attr.c		\
