@@ -34,6 +34,7 @@
 #include <string.h>
 
 #include "sharp.h"
+#include "mocks/api/sharp.h"
 
 #include "../../coll/src/coll.h" /* for coll_av_open */
 
@@ -156,7 +157,10 @@ fid_domain_init(struct fid_domain **domain_fid,
 	(*domain_fid)->mr = mr;
 }
 
-int sharp_domain2(struct fid_fabric *fabric, struct fi_info *info,
+int sharp_progress_func(void);
+
+int
+sharp_domain2(struct fid_fabric *fabric, struct fi_info *info,
 		struct fid_domain **domain_fid, uint64_t flags, void *context)
 {
 	int ret;
@@ -185,12 +189,8 @@ int sharp_domain2(struct fid_fabric *fabric, struct fi_info *info,
 
 	ret = ofi_domain_init(fabric, info, &domain->util_domain, context,
 			      OFI_LOCK_MUTEX);
-
-
-	if (ret) {
-		free(domain);
-		return ret;
-	}
+	if (ret)
+		goto err_free_domain;
 
 	ofi_atomic_initialize32(&domain->ref, 0);
 	domain->util_domain.threading = FI_THREAD_UNSPEC;
@@ -228,5 +228,44 @@ struct sharp_coll_init_spec {
 	int		reserved[4];			/**< Reserved */
 };
 #endif
+
+	struct sharp_coll_config config = { /* XXX */
+		.ib_dev_list = NULL,		/**< IB device name, port list. (const char *) */
+		.user_progress_num_polls = 0,	/**< Number of polls to do before calling user progress. (int) */
+		.coll_timeout = 0,		/**< Timeout (msec) for collective operation, -1 - infinite (int) */
+
+	};
+	struct sharp_coll_out_of_band_colls oob_colls = {
+		.barrier = sharp_oob_barrier,
+		.bcast = sharp_oob_bcast,
+		.gather = sharp_oob_gather
+	};
+	struct sharp_coll_init_spec sharp_coll_spec = {
+//		.job_id = 0,				/**< Job unique ID */
+//		.world_rank = 0,			/**< Global unique process id. */
+//		.world_size = 0,			/**< Num of processes in the job. */
+		.progress_func = sharp_progress_func, /* XXX */ /**< External progress function. */
+//		.group_channel_idx = 0,			/**< local group channel index(0 .. (max - 1))*/
+		.config = config, /* XXX */ 		/**< @ref sharp_coll_config "SHARP COLL Configuration". */
+		.oob_colls = oob_colls,			/**< @ref sharp_coll_out_of_band_colls "List of OOB collectives". */
+//		.world_local_rank = 0,			/**< relative rank of this process on this node within its job. */
+//		.enable_thread_support = 0,		/**< enable multi threaded support. */
+		.oob_ctx = context, /* XXX */ 		/**< context for OOB functions in sharp_coll_init */
+	};
+
+	ret = sharp_coll_init(&sharp_coll_spec, (struct sharp_coll_context **)&domain->sharp_context);
+	if (ret)
+		goto err_free_domain;
+
+	return 0;
+
+err_free_domain:
+	free(domain);
+	return ret;
+}
+
+int
+sharp_progress_func(void)
+{
 	return 0;
 }

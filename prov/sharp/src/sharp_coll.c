@@ -240,3 +240,18 @@ ssize_t sharp_peer_xfer_error(struct fid_ep *ep_fid, struct fi_cq_err_entry *cqe
 			"collective - cq write failed\n");
 	return 0;
 }
+
+int sharp_oob_bcast(void* context, void* buffer, int len, int root)
+{
+	return 0;
+}
+
+int sharp_oob_barrier(void* context)
+{
+	return 0;
+}
+
+int sharp_oob_gather(void * context, int root, void *sbuf, void *rbuf, int len)
+{
+	return 0;
+}
