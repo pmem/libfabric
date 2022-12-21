@@ -334,6 +334,9 @@ OPX_INI ;
 #define COLL_INIT fi_coll_ini()
 COLL_INI ;
 
+#ifndef HAVE_SHARP
+#define HAVE_SHARP 0
+#endif
 #if (HAVE_SHARP) && (HAVE_SHARP_DL)
 #  define SHARP_INI FI_EXT_INI
 #  define SHARP_INIT NULL
