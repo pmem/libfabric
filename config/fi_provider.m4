@@ -85,10 +85,12 @@ dnl
 
 	# Check the --enable-<$1> value
 	$1_dl=0
+	$1_mocked=0
 	AS_CASE([$enable_$1],
 	[yes|no], [],
 	[dl],     [enable_$1=yes $1_dl=1],
-	[auto],   [],
+	[mocked], [enable_$1=yes $1_mocked=1],
+	[auto],   [$1_mocked=1],
 	[dl:*],   [FI_CHECK_PREFIX_DIR([${enable_$1:3}], [$1])
 		   enable_$1=yes $1_dl=1],
 	[FI_CHECK_PREFIX_DIR([$enable_$1], [$1])
@@ -130,6 +132,7 @@ dnl
 
 	AC_DEFINE_UNQUOTED([HAVE_]m4_translit([$1], [a-z], [A-Z]), $$1_happy, [$1 provider is built])
 	AC_DEFINE_UNQUOTED([HAVE_]m4_translit([$1], [a-z], [A-Z])[_DL], $$1_dl, [$1 provider is built as DSO])
+	AC_DEFINE_UNQUOTED([HAVE_]m4_translit([$1], [a-z], [A-Z])[_MOCKED], $$1_mocked, [$1 provider is mocked])
 
 	# Set AM conditionals for HAVE_<provider> and HAVE_<provider>_DL
 	# as well as AC defines
@@ -137,6 +140,8 @@ dnl
 		[test $$1_happy -eq 1])
 	AM_CONDITIONAL([HAVE_]m4_translit([$1], [a-z], [A-Z])[_DL],
 		[test $$1_dl -eq 1])
+	AM_CONDITIONAL([HAVE_]m4_translit([$1], [a-z], [A-Z])[_MOCKED],
+		[test $$1_mocked -eq 1])
 
 	# If this provider was specifically requested but we can't
 	# build it, error.
