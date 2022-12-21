@@ -206,6 +206,8 @@ int sharp_oob_barrier(void* context);
 
 int sharp_oob_gather(void * context, int root, void *sbuf, void *rbuf, int len);
 
+int sharp_oob_progress(void);
+
 /*
 int sharp_coll_init(struct sharp_coll_init_spec *sharp_coll_spec,
 		    struct sharp_coll_context  **sharp_coll_context);
