@@ -1,7 +1,5 @@
 if HAVE_SHARP
 _sharp_files = \
-	prov/sharp/src/mocks/api/sharp.h	\
-	prov/sharp/src/mocks/api/sharp_mocks.c	\
 	include/ofi_sharp.h			\
 	prov/sharp/src/sharp.h			\
 	prov/sharp/src/sharp_attr.c		\
@@ -13,6 +11,14 @@ _sharp_files = \
 	prov/sharp/src/sharp_cq.c		\
 	prov/sharp/src/sharp_coll.c		\
 	prov/sharp/src/sharp_progress.c
+
+if HAVE_SHARP_MOCKED
+_sharp_files += \
+	prov/sharp/src/mocks/api/sharp.h	\
+	prov/sharp/src/mocks/api/sharp_mocks.c
+else !HAVE_SHARP_MOCKED
+sharp_LIBS = -lsharp -lsharp_coll
+endif !HAVE_SHARP_MOCKED
 
 if HAVE_SHARP_DL
 pkglib_LTLIBRARIES += libsharp-fi.la
