@@ -103,17 +103,13 @@ ssize_t rxm_eq_write(struct fid_eq *eq_fid, uint32_t event,
 			rxm_mc->state = RXM_MC_READY;
 		else {
 			rxm_mc->state = RXM_MC_OFF_STARTED;
-			ofi_spin_unlock(&rxm_mc->state_lock);
 			peer_context.mc_fid = &rxm_mc->mc_fid;
 			ret = fi_join_collective(rxm_mc->ep->offload_coll_ep,
 				rxm_mc->coll_addr, &rxm_mc->av_set->av_set_fid,
 				flags | FI_PEER, &rxm_mc->offload_coll_mc_fid,
 				&peer_context);
-			ofi_spin_lock(&rxm_mc->state_lock);
 			if (ret)
 				goto error;
-			ofi_spin_unlock(&rxm_mc->state_lock);
-			return len;
 		}
 	} else if(rxm_mc->state == RXM_MC_OFF_STARTED) {
 		rxm_mc->state = RXM_MC_READY;
