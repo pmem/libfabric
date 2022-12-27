@@ -30,14 +30,16 @@
  * SOFTWARE.
  */
 
-#include "coll.h"
+#include "sharp.h"
+#include "ofi_coll.h" //for coll_cq_init
 
-static int coll_cq_close(struct fid *fid)
+
+static int sharp_cq_close(struct fid *fid)
 {
-	struct coll_cq *cq;
+	struct sharp_cq *cq;
 	int ret;
 
-	cq = container_of(fid, struct coll_cq, util_cq.cq_fid.fid);
+	cq = container_of(fid, struct sharp_cq, util_cq.cq_fid.fid);
 
 	ret = ofi_cq_cleanup(&cq->util_cq);
 	if (ret)
@@ -49,7 +51,7 @@ static int coll_cq_close(struct fid *fid)
 
 static struct fi_ops coll_cq_fi_ops = {
 	.size = sizeof(struct fi_ops),
-	.close = coll_cq_close,
+	.close = sharp_cq_close,
 	.bind = fi_no_bind,
 	.control = fi_no_control,
 	.ops_open = fi_no_ops_open,
@@ -66,24 +68,18 @@ static struct fi_ops_cq coll_cq_ops = {
 	.strerror = fi_no_cq_strerror,
 };
 
-int coll_cq_open(struct fid_domain *domain, struct fi_cq_attr *attr,
-		 struct fid_cq **cq_fid, void *context)
-{
-	return coll_cq_init(domain, attr, cq_fid, &ofi_cq_progress, context);
-}
-
-int coll_cq_init(struct fid_domain *domain,
+int sharp_cq_init(struct fid_domain *domain,
 		struct fi_cq_attr *attr, struct fid_cq **cq_fid,
 		ofi_cq_progress_func progress, void *context)
 {
-	struct coll_cq *cq;
+	struct sharp_cq *cq;
 	struct fi_peer_cq_context *peer_context = context;
 	int ret;
 
-	const struct coll_domain *coll_domain;
+	const struct sharp_domain *coll_domain;
 	const struct fi_provider* provider;
 
-	coll_domain = container_of(domain, struct coll_domain, util_domain.domain_fid.fid);
+	coll_domain = container_of(domain, struct sharp_domain, util_domain.domain_fid.fid);
 	provider = coll_domain->util_domain.fabric->prov;
 
 	if (!attr || !(attr->flags & FI_PEER)) {
@@ -114,4 +110,10 @@ int coll_cq_init(struct fid_domain *domain,
 err:
 	free(cq);
 	return ret;
+}
+
+int sharp_cq_open(struct fid_domain *domain, struct fi_cq_attr *attr,
+		 struct fid_cq **cq_fid, void *context)
+{
+	return sharp_cq_init(domain, attr, cq_fid, &ofi_cq_progress, context);
 }

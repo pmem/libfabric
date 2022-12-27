@@ -126,7 +126,41 @@ static int rxm_fabric_init_offload_coll(struct rxm_fabric *fabric)
 	 * silimar to rxm_fabric_init_util_coll, except that the offload
 	 * provider is discovered by feature instead of name.
 	 */
+	struct fi_info *hints, *offload_coll_info;
+	struct fid_fabric *offload_coll_fabric;
+	char *offload_coll_name;
+	int ret;
+
+	fi_param_get_str(NULL, "offload_coll_provider", &offload_coll_name);
+
+	if (!strlen(offload_coll_name)) {
+		return 0;
+	}
+
+	hints = fi_allocinfo();
+	if (!hints)
+		return -FI_ENOMEM;
+
+	hints->fabric_attr->prov_name = strdup(offload_coll_name);
+	hints->mode = FI_PEER_TRANSFER;
+	ret = fi_getinfo(OFI_VERSION_LATEST, NULL, NULL, OFI_OFFLOAD_PROV_ONLY,
+			 hints, &offload_coll_info);
+	fi_freeinfo(hints);
+
+	if (ret)
+		return ret;
+
+	ret = fi_fabric(offload_coll_info->fabric_attr, &offload_coll_fabric, NULL);
+	if (ret)
+		goto err;
+
+	fabric->offload_coll_info = offload_coll_info;
+	fabric->offload_coll_fabric = offload_coll_fabric;
 	return 0;
+
+err:
+	fi_freeinfo(offload_coll_info);
+	return ret;
 }
 
 int rxm_fabric(struct fi_fabric_attr *attr, struct fid_fabric **fabric,

@@ -30,88 +30,73 @@
  * SOFTWARE.
  */
 
-#include "coll.h"
+#include "sharp.h"
 
-static int coll_cq_close(struct fid *fid)
+static int sharp_eq_close(struct fid *fid)
 {
-	struct coll_cq *cq;
+	struct sharp_eq *eq;
 	int ret;
 
-	cq = container_of(fid, struct coll_cq, util_cq.cq_fid.fid);
+	eq = container_of(fid, struct sharp_eq, util_eq.eq_fid.fid);
 
-	ret = ofi_cq_cleanup(&cq->util_cq);
+	ret = ofi_eq_cleanup(fid);
 	if (ret)
 		return ret;
 
-	free(cq);
+	free(eq);
 	return 0;
 }
 
-static struct fi_ops coll_cq_fi_ops = {
+static struct fi_ops sharp_eq_fi_ops = {
 	.size = sizeof(struct fi_ops),
-	.close = coll_cq_close,
+	.close = sharp_eq_close,
 	.bind = fi_no_bind,
 	.control = fi_no_control,
 	.ops_open = fi_no_ops_open,
 };
 
-static struct fi_ops_cq coll_cq_ops = {
+static struct fi_ops_eq sharp_eq_ops = {
 	.size = sizeof(struct fi_ops_cq),
-	.read = fi_no_cq_read,
-	.readfrom = fi_no_cq_readfrom,
-	.readerr = fi_no_cq_readerr,
-	.sread = fi_no_cq_sread,
-	.sreadfrom = fi_no_cq_sreadfrom,
-	.signal = fi_no_cq_signal,
-	.strerror = fi_no_cq_strerror,
+	.read = fi_no_eq_read,
+	.readerr = fi_no_eq_readerr,
+	.write = fi_no_eq_write,
+	.sread = fi_no_eq_sread,
+	.strerror = fi_no_eq_strerror,
 };
 
-int coll_cq_open(struct fid_domain *domain, struct fi_cq_attr *attr,
-		 struct fid_cq **cq_fid, void *context)
+int sharp_eq_open(struct fid_fabric *fabric, struct fi_eq_attr *attr,
+		 struct fid_eq **eq_fid, void *context)
 {
-	return coll_cq_init(domain, attr, cq_fid, &ofi_cq_progress, context);
-}
-
-int coll_cq_init(struct fid_domain *domain,
-		struct fi_cq_attr *attr, struct fid_cq **cq_fid,
-		ofi_cq_progress_func progress, void *context)
-{
-	struct coll_cq *cq;
-	struct fi_peer_cq_context *peer_context = context;
+	struct sharp_eq *eq;
+	struct fi_peer_eq_context *peer_context = context;
 	int ret;
 
-	const struct coll_domain *coll_domain;
-	const struct fi_provider* provider;
-
-	coll_domain = container_of(domain, struct coll_domain, util_domain.domain_fid.fid);
-	provider = coll_domain->util_domain.fabric->prov;
-
 	if (!attr || !(attr->flags & FI_PEER)) {
-		FI_WARN(provider, FI_LOG_CORE, "FI_PEER flag required\n");
+		FI_WARN(&sharp_prov, FI_LOG_CORE, "FI_PEER flag required\n");
                 return -EINVAL;
 	}
 
 	if (!peer_context || peer_context->size < sizeof(*peer_context)) {
-		FI_WARN(provider, FI_LOG_CORE, "invalid peer CQ context\n");
+		FI_WARN(&sharp_prov, FI_LOG_CORE, "invalid peer EQ context\n");
                 return -EINVAL;
 	}
 
-	cq = calloc(1, sizeof(*cq));
-	if (!cq)
+	eq = calloc(1, sizeof(*eq));
+	if (!eq)
 		return -FI_ENOMEM;
 
-	cq->peer_cq = peer_context->cq;
+	eq->peer_eq = peer_context->eq;
 
-	ret = ofi_cq_init(provider, domain, attr, &cq->util_cq, progress, context);
+	ret = ofi_eq_init(fabric, attr, &eq->util_eq.eq_fid, context);
 	if (ret)
 		goto err;
 
-	*cq_fid = &cq->util_cq.cq_fid;
-	(*cq_fid)->fid.ops = &coll_cq_fi_ops;
-	(*cq_fid)->ops = &coll_cq_ops;
+	*eq_fid = &eq->util_eq.eq_fid;
+	(*eq_fid)->fid.ops = &sharp_eq_fi_ops;
+	(*eq_fid)->ops = &sharp_eq_ops;
 	return 0;
 
 err:
-	free(cq);
+	free(eq);
 	return ret;
 }

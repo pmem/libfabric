@@ -32,85 +32,78 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <inttypes.h>
 
-#include <ofi.h>
+#include "sharp.h"
 
-#include "rxm.h"
+static struct fi_ops_fabric sharp_fabric_ops = {
+	.size = sizeof(struct fi_ops_fabric),
+	.domain = fi_no_domain,
+	.passive_ep = fi_no_passive_ep,
+	.eq_open = sharp_eq_open,
+	.wait_open = fi_no_wait_open,
+	.trywait = ofi_trywait,
+	.domain2 = sharp_domain2
+};
 
-static int rxm_eq_close(struct fid *fid)
+static int sharp_fabric_close(fid_t fid)
 {
-	struct rxm_eq *rxm_eq;
-	int ret, retv = 0;
+	int ret;
+	struct util_fabric *fabric;
 
-	rxm_eq = container_of(fid, struct rxm_eq, util_eq.eq_fid.fid);
+	fabric = container_of(fid, struct util_fabric, fabric_fid.fid);
 
-	if (rxm_eq->util_coll_eq)
-		fi_close(&rxm_eq->util_coll_eq->fid);
-
-	ret = ofi_eq_cleanup(&rxm_eq->util_eq.eq_fid.fid);
+	ret = ofi_fabric_close(fabric);
 	if (ret)
-		retv = ret;
+		return ret;
 
-	free(rxm_eq);
-	return retv;
+	free(fabric);
+	return 0;
 }
 
-static struct fi_ops rxm_eq_fi_ops = {
+static struct fi_ops sharp_fabric_fi_ops = {
 	.size = sizeof(struct fi_ops),
-	.close = rxm_eq_close,
+	.close = sharp_fabric_close,
 	.bind = fi_no_bind,
-	.control = ofi_eq_control,
+	.control = fi_no_control,
 	.ops_open = fi_no_ops_open,
 };
 
-int rxm_eq_open(struct fid_fabric *fabric_fid, struct fi_eq_attr *attr,
-		struct fid_eq **eq_fid, void *context)
+/// XXX to be added to fabric.h later
+static inline void 
+fid_fabric_init(struct fid_fabric **fabric_fid,
+		struct util_fabric *util_fabric, struct fi_ops *fid_ops,
+		struct fi_ops_fabric *ops)
 {
-	struct rxm_fabric *rxm_fabric;
-	struct rxm_eq *rxm_eq;
-	struct fi_peer_eq_context peer_context = {
-		.size = sizeof(struct fi_peer_eq_context),
-	};
-	struct fi_eq_attr peer_attr = {
-		.flags = FI_PEER,
-	};
+	*fabric_fid = &util_fabric->fabric_fid;
+	(*fabric_fid)->fid.ops = fid_ops;
+	(*fabric_fid)->ops = ops;
+}
+
+int sharp_fabric(struct fi_fabric_attr *attr, struct fid_fabric **fabric_fid,
+		void *context)
+{
 	int ret;
+	struct sharp_fabric *fabric;
 
-	rxm_fabric = container_of(fabric_fid, struct rxm_fabric,
-				  util_fabric.fabric_fid);
-
-	rxm_eq = calloc(1, sizeof(*rxm_eq));
-	if (!rxm_eq)
+	fabric = calloc(1, sizeof(*fabric));
+	if (!fabric)
 		return -FI_ENOMEM;
 
-	ret = ofi_eq_init(fabric_fid, attr, &rxm_eq->util_eq.eq_fid, context);
+	ret = ofi_fabric_init(&sharp_prov, &sharp_fabric_attr, attr,
+			      &fabric->util_fabric, context);
 	if (ret)
-		goto err1;
+		goto err;
 
-	peer_context.eq = &rxm_eq->util_eq.eq_fid;
-
-	if (rxm_fabric->util_coll_fabric) {
-		ret = fi_eq_open(rxm_fabric->util_coll_fabric, &peer_attr,
-				 &rxm_eq->util_coll_eq, &peer_context);
-		if (ret)
-			goto err2;
-	}
-
-	if (rxm_fabric->offload_coll_fabric) {
-		ret = fi_eq_open(rxm_fabric->offload_coll_fabric, &peer_attr,
-				 &rxm_eq->offload_coll_eq, &peer_context);
-		if (ret)
-			goto err2;
-	}
-
-	rxm_eq->util_eq.eq_fid.fid.ops = &rxm_eq_fi_ops;
-	*eq_fid = &rxm_eq->util_eq.eq_fid;
+#if 0
+	*fabric_fid = &fabric->util_fabric.fabric_fid; ///XXX to be removed later
+	(*fabric_fid)->fid.ops = &sharp_fabric_fi_ops;
+	(*fabric_fid)->ops = &sharp_fabric_ops;
+#endif
+	fid_fabric_init(fabric_fid, &fabric->util_fabric, &sharp_fabric_fi_ops,
+		&sharp_fabric_ops);
 	return 0;
 
-err2:
-	ofi_eq_cleanup(&rxm_eq->util_eq.eq_fid.fid);
-err1:
-	free(rxm_eq);
+err:
+	free(fabric);
 	return ret;
 }
