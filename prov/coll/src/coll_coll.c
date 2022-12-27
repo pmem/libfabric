@@ -325,7 +325,7 @@ static int coll_sched_copy(struct util_coll_operation *coll_op,
 	return FI_SUCCESS;
 }
 
-static int coll_sched_comp(struct util_coll_operation *coll_op)
+int coll_sched_comp(struct util_coll_operation *coll_op)
 {
 	struct util_coll_work_item *comp_item;
 
@@ -665,8 +665,7 @@ static struct fi_ops util_coll_fi_ops = {
 	.ops_open = fi_no_ops_open,
 };
 
-static int coll_find_local_rank(struct fid_ep *ep,
-				struct util_coll_mc *coll_mc)
+int coll_find_local_rank(struct fid_ep *ep, struct util_coll_mc *coll_mc)
 {
 	struct coll_av *av = container_of(coll_mc->av_set->av, struct coll_av,
 					  util_av.av_fid);

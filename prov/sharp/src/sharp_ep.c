@@ -164,10 +164,6 @@ fid_ep_init(struct fid_ep **ep_fid,
 	(*ep_fid)->atomic = atomic;
 	(*ep_fid)->collective = collective;
 }
-void sharp_ep_progress(struct util_ep *util_ep)
-{
-	;
-}
 
 static struct fi_ops_transfer_peer sharp_ep_peer_xfer_ops = {
 	.size = sizeof(struct fi_ops_transfer_peer),
