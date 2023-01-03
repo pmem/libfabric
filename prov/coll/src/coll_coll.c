@@ -945,7 +945,7 @@ int coll_join_collective(struct fid_ep *ep, const void *addr,
 	coll_find_local_rank(ep, new_coll_mc);
 	coll_find_local_rank(ep, coll_mc);
 
-	join_op = coll_create_op(ep, coll_mc, UTIL_COLL_JOIN_OP, flags,
+	join_op = coll_create_op(ep, new_coll_mc, UTIL_COLL_JOIN_OP, flags,
 				 context, coll_join_comp);
 	if (!join_op) {
 		ret = -FI_ENOMEM;
