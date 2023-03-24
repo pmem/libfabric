@@ -726,6 +726,7 @@ struct util_coll_mc {
 	uint16_t		group_id;
 	uint16_t		seq;
 	ofi_atomic32_t		ref;
+	struct fid_mc		*peer_mc;
 };
 
 struct util_av_set {
@@ -1158,6 +1159,13 @@ enum {
 	OFI_OPT_TCP_FI_ADDR = -FI_PROV_SPECIFIC_TCP
 };
 
+/*
+ * Peer mc support.
+ */
+struct fi_peer_mc_context {
+	size_t size;
+	struct fid_mc *mc_fid;
+};
 
 #ifdef __cplusplus
 }
